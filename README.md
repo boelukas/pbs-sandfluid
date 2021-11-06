@@ -14,3 +14,6 @@ git submodule update --init --recursive
 conda env create -f env.yaml
 conda activate sandfluid
 ```
+
+## Autoformatter
+VsCode will ask which autoformatter to use. Select "Use Black".
