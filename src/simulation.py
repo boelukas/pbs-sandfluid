@@ -1,6 +1,7 @@
 import taichi as ti
 import open3d as o3d
 import numpy as np
+from particle_field import ParticleField
 
 import pathlib
 
@@ -15,6 +16,8 @@ class Simulation(object):
         self.t = 0.0
         self.paused = True
         self.gravity = np.array([0.0, -9.81, 0.0])
+        self.particles = ParticleField(start_pos = ti.Vector((0, 5, 0)), scale = 0.5, shape=(6,6,6))
+        self.draw_convex_hull = False
         self.init()
 
     def init(self):
@@ -32,7 +35,8 @@ class Simulation(object):
             self.dt,
             self.t
         )
-        #self.update_meshes()
+        self.particles.update_new_positions()
+
 
 def main():
     sim = Simulation()
@@ -79,11 +83,21 @@ def main():
     aabb.color = [0.7, 0.7, 0.7]
     vis.add_geometry(aabb)  # bounding box
 
+    vis.add_geometry(sim.particles.point_cloud)
+
+    if(sim.draw_convex_hull):
+        convex_hull = sim.particles.point_cloud.compute_convex_hull()[0]
+        convex_hull.orient_triangles()
+        vis.add_geometry(convex_hull)
+
     while True:
         sim.step()
 
-        # for mesh in sim.objects.meshes.ravel():
-        #     vis.update_geometry(mesh)
+        vis.update_geometry(sim.particles.point_cloud)
+        if(sim.draw_convex_hull):
+            convex_hull = sim.particles.point_cloud.compute_convex_hull()[0]
+            convex_hull.orient_triangles()
+            vis.update_geometry(convex_hull)
 
         if not vis.poll_events():
             break
