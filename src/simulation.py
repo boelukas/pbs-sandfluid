@@ -3,8 +3,6 @@ import open3d as o3d
 import numpy as np
 from particle_field import ParticleField
 
-import pathlib
-
 # For debugging
 # ti.init(debug=True, arch=ti.cpu)
 ti.init(arch=ti.gpu)
@@ -25,6 +23,7 @@ class Simulation(object):
 
     @ti.kernel
     def advance(self, dt: ti.f32, t: ti.f32):
+        # TODO: Update particle positions self.particles.pos here
         pass
 
     def step(self):
