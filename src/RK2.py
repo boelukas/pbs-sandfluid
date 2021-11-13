@@ -1,48 +1,43 @@
 from typing import Tuple
 import taichi as ti
 import numpy as np
+from macgrid import sMACGrid
+
+from taichi.examples.simulation.vortex_rings import T
 
 
 STEP_SIZE = 1.
 
 #Solve Runge-Kutta ODE of second order
-def runge_kutta(
+def runge_kutta_2(
     pos: Tuple[float,float,float],
-    vel: Tuple[float,float,float],
-    steps: np.array() = np.linspace(1/STEP_SIZE, STEP_SIZE, 5)
+    vel_field: np.array(Tuple[float, float, float]),
+    t: np.array() = np.linspace(1/STEP_SIZE, STEP_SIZE, 5)
+
     ) -> Tuple[float,float,float]:
-    return (0,0,0)
 
-### UNDER CONSTRUCTION ###
+    n = len(t)
+    x = np.array([pos] * n)
+    for i in range(n-1):
+        h = t[i+1]- t[i] # 1/5 in our case
+        # should use velocity of point x[i] sampled from velocity field
+        # something like:
+        k1 = h * dydx(x[i], t[i], vel_field)
+        x[i+1] = x[i] + h * dydx(x[i] + k1, t[i] + h/2.0, vel_field)
 
-def dydx(x: Tuple[float,float,float], y:Tuple[float,float,float]) :
-    pos_derivative = lambda x, y : x+y/2.
-    return tuple(map(pos_derivative, zip(x, y)))
 
-# Finds value of y for a given x
-# using step size h
-# and initial value y0 at x0.
-def rungeKutta2(x0, y0, x, h) :
+    return x[n-1]
 
-    # Count number of iterations
-    # using step size or
-    # step height h
-    n = round((x - x0) / h)
+
+
+def dydx(x: Tuple[float,float,float], t: float, vel_field: np.array(Tuple[float, float, float])) -> Tuple[float,float,float]:
+    # computes velocity at point x at time t given a velocity field
+
+    # use Euler Step Method (implicit/explicit/midpoint) to solve first order ODE
     
-        # Iterate for number of iterations
-    y = y0
+    vel_x = vel_field.sample_velocity(x)
+        ### UNDER CONSTRUCTION ###
+
+    return tuple(0., 0., 0.)
     
-    for i in range(1, n + 1) :
-        
-                # Apply Runge Kutta Formulas
-        # to find next value of y
-        k1 = h * dydx(x0, y)
-        k2 = h * dydx(x0 + 0.5 * h, y + 0.5 * k1)
-
-        # Update next value of y
-        y = y + (1.0 / 6.0) * (k1 + 2 * k2)
-
-        # Update next value of x
-        x0 = x0 + h
-
-    return y
+# https://stackoverflow.com/questions/35258628/what-will-be-python-code-for-runge-kutta-second-method

@@ -2,6 +2,8 @@ from typing import Tuple
 import taichi as ti
 import numpy as np
 
+from RK2 import runge_kutta
+
 class Particle:
     def __init__(self, x:float, y:float, z:float, velocity:Tuple[float,float,float],radius=0.1) -> None:
         self.x = x
@@ -23,16 +25,19 @@ class Particle:
         self.radius = radius
         return None
     
-    #Update position after updating velocity
-    def update_position(self) -> None:
-        #self.x = 
-        #self.y = 
-        #self.z = 
-        return None
-    
     def update_velocity(self, new_velocity:Tuple[float,float,float]) -> None:
         self.velocity = new_velocity
         return None
+
+    #Update position after updating velocity
+    def update_position(self) -> None:
+        pos = self.get_position()
+        vel_field = sMACGrid().vel_grid
+        
+        (self.x, self.y, self.z) = runge_kutta(pos = pos, vel_field = vel_field)
+        return None
+    
+
 
 #Store all particle instances within here
 #Compute averaging over nearest neighbor particles
