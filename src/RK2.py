@@ -11,7 +11,7 @@ STEP_SIZE = 1.
 #Solve Runge-Kutta ODE of second order
 def runge_kutta_2(
     pos: Tuple[float,float,float],
-    vel_field: np.array(Tuple[float, float, float]),
+    grid: sMACGrid,
     t: np.array() = np.linspace(1/STEP_SIZE, STEP_SIZE, 5)
 
     ) -> Tuple[float,float,float]:
@@ -22,22 +22,25 @@ def runge_kutta_2(
         h = t[i+1]- t[i] # 1/5 in our case
         # should use velocity of point x[i] sampled from velocity field
         # something like:
-        k1 = h * dydx(x[i], t[i], vel_field)
-        x[i+1] = x[i] + h * dydx(x[i] + k1, t[i] + h/2.0, vel_field)
+        k1 = h * dxdt(x[i], t[i], grid)
+        x[i+1] = x[i] + h * dxdt(x[i] + k1, t[i] + h/2.0, grid)
 
-
+    # return x
     return x[n-1]
 
 
 
-def dydx(x: Tuple[float,float,float], t: float, vel_field: np.array(Tuple[float, float, float])) -> Tuple[float,float,float]:
+def dxdt(x: Tuple[float,float,float], t: float, grid: sMACGrid) -> Tuple[float,float,float]:
     # computes velocity at point x at time t given a velocity field
 
     # use Euler Step Method (implicit/explicit/midpoint) to solve first order ODE
+    # TODO: Change to more stable solution
+    vel_x = grid.get_interpolated_velocity(x)
     
-    vel_x = vel_field.sample_velocity(x)
-        ### UNDER CONSTRUCTION ###
+    #forward
+    y = x + t*vel_x
+    dx = grid.get_interpolated_velocity(y)
 
-    return tuple(0., 0., 0.)
+    return dx
     
 # https://stackoverflow.com/questions/35258628/what-will-be-python-code-for-runge-kutta-second-method

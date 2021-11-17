@@ -2,7 +2,7 @@ from typing import Tuple
 import taichi as ti
 import numpy as np
 
-from RK2 import runge_kutta
+from RK2 import runge_kutta_2
 
 class Particle:
     def __init__(self, x:float, y:float, z:float, velocity:Tuple[float,float,float],radius=0.1) -> None:
@@ -32,9 +32,9 @@ class Particle:
     #Update position after updating velocity
     def update_position(self) -> None:
         pos = self.get_position()
-        vel_field = sMACGrid().vel_grid
+        grid = sMACGrid()
         
-        (self.x, self.y, self.z) = runge_kutta(pos = pos, vel_field = vel_field)
+        (self.x, self.y, self.z) = runge_kutta_2(pos = pos, vel_field = grid)
         return None
     
 
@@ -80,5 +80,10 @@ class sMACGrid:
     
     #Update Pressure
     def update_pressure(self) -> None:
+        return NotImplementedError
+
+    #Sample interpolated velocity for (x,y,z) coordinates
+    #Used in RK2 method
+    def get_interpolated_velocity(pos: Tuple[float,float,float]) -> Tuple[float,float,float]:
         return NotImplementedError
 
