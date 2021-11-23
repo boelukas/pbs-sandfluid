@@ -74,6 +74,23 @@ class sMACGrid:
 
         return (i,j,k)
 
+    #Returns the global position of a staggered grid point
+    def gridindex_to_position(self, i:int, j:int, k:int, grid:str) -> Tuple[float,float,float]:
+
+        if(grid == "velX"):
+            pos = (i*self.scale, (j + 0.5)*self.scale, (k + 0.5)*self.scale)
+        elif(grid == "velY"):
+            pos = ((i + 0.5)*self.scale, j*self.scale, (k + 0.5)*self.scale)
+        elif(grid == "velZ"):
+            pos = ((i + 0.5)*self.scale, (j + 0.5)*self.scale, k*self.scale)
+        elif(grid == "pressure"):
+            pos = ((i + 0.5)*self.scale, (j + 0.5)*self.scale, (k + 0.5)*self.scale)
+        else:
+            print("No grid specified.")
+            return None
+            
+        return pos
+
     #Transfer values of particle velocities on the grid with weighest nearest neighbour averaging.
     def set_grid_velocity(self, valuesX: np.ndarray, valuesY: np.ndarray, valuesZ: np.ndarray) -> None:
         self.velX_grid.from_numpy(valuesX)
@@ -106,6 +123,7 @@ class sMACGrid:
         if not is_in_bound:
             raise InvalidIndexError("Index is out of bounds.")
         
+        #Linearly interpolated between faces of the voxel
         velX = 0.5 * (self.velX_grid[i,j,k] + self.velX_grid[i+1,j,k])
         velY = 0.5 * (self.velY_grid[i,j,k] + self.velY_grid[i,j+1,k])
         velZ = 0.5 * (self.velZ_grid[i,j,k] + self.velZ_grid[i,j,k+1])
