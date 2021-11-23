@@ -3,7 +3,8 @@ import taichi as ti
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
-from RK2 import runge_kutta_2
+# Cycle import boyyys
+# from RK2 import runge_kutta_2
 
 # ti.init(debug=True, arch=ti.cpu)
 ti.init(arch=ti.cpu)
@@ -39,7 +40,7 @@ class Particle:
         pos = self.get_position()
         grid = sMACGrid()
         
-        (self.x, self.y, self.z) = runge_kutta_2(pos = pos, vel_field = grid)
+        # (self.x, self.y, self.z) = runge_kutta_2(pos = pos, vel_field = grid)
         return None
     
     
@@ -61,6 +62,7 @@ class sMACGrid:
         self.velZ_grid = ti.field(ti.f32,shape=(self.grid_size,self.grid_size,self.grid_size+1))
         #Pressure is sampled at the cell center
         self.pressure_grid = ti.field(ti.f32,shape=(self.grid_size,self.grid_size,self.grid_size))
+        self.divergence_grid = ti.field(ti.f32, shape=(self.grid_size,self.grid_size,self.grid_size))
 
     #Returns index of the voxel in which the given Particle is present
     def get_voxel(self, particle: Particle) -> Tuple[int,int,int]:
@@ -110,7 +112,7 @@ class sMACGrid:
            values[7] * x * y * z
         return res
 
-    def index_in_bounds(self, i:int, j:int, k:int, grid:ti.lang.field.ScalarField) -> bool:
+    def index_in_bounds(self, i:int, j:int, k:int, grid:ti.template()) -> bool:
         shape = grid.shape
         if(i >= shape[0] or j >= shape[1] or k >= shape[2]):
                 #raise InvalidIndexError("Index is out of bounds.")
