@@ -1,10 +1,11 @@
 import taichi as ti
 import open3d as o3d
 import numpy as np
-from particle_field import ParticleField
 from macgrid import sMACGrid
+from macgrid import Particle
 from pressure_solver import PressureSolver
 from force_solver import ForceSolver
+from particle_visualization import ParticleVisualization
 
 # For debugging
 # ti.init(debug=True, arch=ti.cpu)
@@ -19,8 +20,13 @@ class Simulation(object):
         self.dx = 1.0
         self.paused = True
         self.draw_convex_hull = False
-        self.particles = ParticleField(start_pos = ti.Vector((2, 2, 2)), scale = 0.5, shape=(20,20,20))
-
+        self.scale = 0.5
+        #self.particles = ParticleField(start_pos = ti.Vector((2, 2, 2)), scale = 0.5, shape=(20,20,20))
+        self.particles = []
+        particle_start_pos = (2, 2, 2)
+        for i, j, k in np.ndindex((5, 5, 5)):
+            self.particles += [Particle(particle_start_pos[0] + self.scale * i,particle_start_pos[0] + self.scale * j,particle_start_pos[0] + self.scale * k, (0.1, 0.1, 0.1))]
+        self.particles_vis = ParticleVisualization(self.particles)
         self.mac_grid = sMACGrid(domain=self.resolution[0], scale=1)
         self.pressure_solver = PressureSolver(self.mac_grid)
         self.force_solver = ForceSolver(self.mac_grid)
@@ -30,7 +36,6 @@ class Simulation(object):
     def init(self):
         self.t = 0.0
 
-    @ti.kernel
     def advance(self, dt: ti.f32, t: ti.f32):
         # TODO: Compute mac_grid.VelX_grid, mac_grid.VelY_grid, mac_grid.VelZ_grid as
         # weighted average over the particle velocities
@@ -50,7 +55,12 @@ class Simulation(object):
 
         # TODO: Replace with RK2 step
         # Update the particle position with the new velocity by stepping in the velocity direction
-        self.particles.step_in_velocity_direction(dt)
+        for p in self.particles:
+            x, y, z = p.get_position()
+            u, v, w = p.get_velocity()
+            p.x = x + dt * u
+            p.y = y + dt * v
+            p.z = z + dt * w
 
     def step(self):
         if self.paused:
@@ -60,7 +70,7 @@ class Simulation(object):
             self.dt,
             self.t
         )
-        self.particles.update_new_positions()
+        self.particles_vis.update_particles(self.particles)
 
 
 def main():
@@ -108,19 +118,19 @@ def main():
     aabb.color = [0.7, 0.7, 0.7]
     vis.add_geometry(aabb)  # bounding box
 
-    vis.add_geometry(sim.particles.point_cloud)
+    vis.add_geometry(sim.particles_vis.point_cloud)
 
     if(sim.draw_convex_hull):
-        convex_hull = sim.particles.point_cloud.compute_convex_hull()[0]
+        convex_hull = sim.particles_vis.point_cloud.compute_convex_hull()[0]
         convex_hull.orient_triangles()
         vis.add_geometry(convex_hull)
 
     while True:
         sim.step()
 
-        vis.update_geometry(sim.particles.point_cloud)
+        vis.update_geometry(sim.particles_vis.point_cloud)
         if(sim.draw_convex_hull):
-            convex_hull = sim.particles.point_cloud.compute_convex_hull()[0]
+            convex_hull = sim.particles_vis.point_cloud.compute_convex_hull()[0]
             convex_hull.orient_triangles()
             vis.update_geometry(convex_hull)
 

@@ -113,12 +113,12 @@ class sMACGrid:
             
         return pos
 
-    def weigthed_average(self, particles: list(Tuple[Tuple[float,float,float], float]), pos: Tuple[float,float,float]) -> float:
-        #TODO: implement weighted average according to slides
-        return None
+    # def weigthed_average(self, particles: list(Tuple[Tuple[float,float,float], float]), pos: Tuple[float,float,float]) -> float:
+    #     #TODO: implement weighted average according to slides
+    #     return None
 
     #Transfer values of particle velocities on the grid with weighted neighbourhood averaging.
-    def splat_velocity(self, particles: list(Particle)) -> None:
+    def splat_velocity(self, particles: List[Particle]) -> None:
         #initialize array for final grid values
         size = self.grid_size
         valuesX = np.ndarray(size+1,size,size)
@@ -325,7 +325,7 @@ class sMACGrid:
     def runge_kutta_2(
         self,
         pos: Tuple[float,float,float],
-        t: np.array() = np.linspace(1/STEP_SIZE, STEP_SIZE, 5)
+        t: np.ndarray= np.linspace(1/STEP_SIZE, STEP_SIZE, 5)
 
         ) -> Tuple[float,float,float]:
 

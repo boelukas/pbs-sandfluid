@@ -23,7 +23,7 @@ class PressureSolver(object):
             self.mac_grid.divergence_grid[x, y, z] = du_dx + du_dy + du_dz
 
     # Computes pressure that will be needed to make the velocity divergence free
-    @ti.func
+    @ti.kernel
     def compute_pressure(self, dt: ti.f32):
         self.mac_grid.clear_field(self.mac_grid.divergence_grid)
 
@@ -31,8 +31,8 @@ class PressureSolver(object):
         self.gauss_seidel(dt)
 
     # Computes the velocity projection to make the velocity divergence free
-    @ti.func
-    def project(self, dt):
+    @ti.kernel
+    def project(self, dt: ti.f32):
         DENSITY = 1.0
         for x, y, z in ti.ndrange((1, self.mac_grid.grid_size), (1, self.mac_grid.grid_size - 1), (1, self.mac_grid.grid_size - 1)):
             self.mac_grid.velX_grid[x, y, z] -= dt * (1.0 / DENSITY) * (self.mac_grid.pressure_grid[x, y, z] - self.mac_grid.pressure_grid[x - 1, y, z]) / self.mac_grid.dx
