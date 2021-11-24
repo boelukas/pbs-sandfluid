@@ -56,10 +56,15 @@ class sMACGrid:
         self.scale = scale
         #grid that stores velocity and pressure attributes
         self.grid_size = int(domain * scale)
+        self.dx = 1
         #Velocity is stored at the faces of the cell/voxel along the corresponding axis
         self.velX_grid = ti.field(ti.f32,shape=(self.grid_size+1,self.grid_size,self.grid_size))
         self.velY_grid = ti.field(ti.f32,shape=(self.grid_size,self.grid_size+1,self.grid_size))
         self.velZ_grid = ti.field(ti.f32,shape=(self.grid_size,self.grid_size,self.grid_size+1))
+        
+        self.forceX_grid = ti.field(ti.f32,shape=(self.grid_size+1,self.grid_size,self.grid_size))
+        self.forceY_grid = ti.field(ti.f32,shape=(self.grid_size,self.grid_size+1,self.grid_size))
+        self.forceZ_grid = ti.field(ti.f32,shape=(self.grid_size,self.grid_size,self.grid_size+1))
         #Pressure is sampled at the cell center
         self.pressure_grid = ti.field(ti.f32,shape=(self.grid_size,self.grid_size,self.grid_size))
         self.divergence_grid = ti.field(ti.f32, shape=(self.grid_size,self.grid_size,self.grid_size))
@@ -204,3 +209,7 @@ class sMACGrid:
     def get_interpolated_velocity(pos: Tuple[float,float,float]) -> Tuple[float,float,float]:
         return NotImplementedError
 
+    @ti.func
+    def clear_field(self, target_field: ti.template(), zero_value: ti.template() = 0):
+        for x, y, z in ti.ndrange(target_field.shape[0], target_field.shape[1], target_field.shape[2]):
+            target_field[x, y, z] = zero_value

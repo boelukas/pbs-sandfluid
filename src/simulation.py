@@ -4,6 +4,7 @@ import numpy as np
 from particle_field import ParticleField
 from macgrid import sMACGrid
 from pressure_solver import PressureSolver
+from force_solver import ForceSolver
 
 # For debugging
 # ti.init(debug=True, arch=ti.cpu)
@@ -18,11 +19,11 @@ class Simulation(object):
         self.dx = 1.0
         self.paused = True
         self.draw_convex_hull = False
-        self.gravity = np.array([0.0, -9.81, 0.0])
         self.particles = ParticleField(start_pos = ti.Vector((2, 2, 2)), scale = 0.5, shape=(20,20,20))
 
         self.mac_grid = sMACGrid(domain=self.resolution[0], scale=1)
         self.pressure_solver = PressureSolver(self.mac_grid)
+        self.force_solver = ForceSolver(self.mac_grid)
 
         self.init()
 
@@ -31,11 +32,24 @@ class Simulation(object):
 
     @ti.kernel
     def advance(self, dt: ti.f32, t: ti.f32):
-        # TODO: Update particle positions self.particles.pos here
-        # advect
-        # add body forces
-        # project
-        self.pressure_solver.compute_pressure()
+        # TODO: Compute mac_grid.VelX_grid, mac_grid.VelY_grid, mac_grid.VelZ_grid as
+        # weighted average over the particle velocities
+
+        # Adds gravity to the fluid 
+        # -> velocity changed
+        self.force_solver.compute_forces()
+        self.force_solver.apply_forces(dt)
+
+        # Ensure the fluid stays incompressible: 
+        # Add enough pressure to the fluid to make the velocity field have divergence 0
+        # -> velocity changed
+        self.pressure_solver.compute_pressure(dt)
+        self.pressure_solver.project(dt)
+
+        # TODO: Bring the new velocity to the particles
+
+        # TODO: Replace with RK2 step
+        # Update the particle position with the new velocity by stepping in the velocity direction
         self.particles.step_in_velocity_direction(dt)
 
     def step(self):
