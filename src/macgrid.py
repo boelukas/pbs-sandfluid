@@ -8,37 +8,9 @@ ti.init(arch=ti.cpu)
 #ti.init(arch=ti.gpu)
 
 class Particle:
-    def __init__(self, x:float, y:float, z:float, velocity:Tuple[float,float,float],radius=0.1) -> None:
-        self.x = x
-        self.y = y
-        self.z = z
-        self.velocity = velocity
-        self.radius = radius
-
-    def get_position(self) -> Tuple[float,float,float]:
-        return (self.x, self.y, self.z)
-
-    def get_velocity(self) -> Tuple[float,float,float]:
-        return self.velocity
-
-    def get_radius(self) -> float:
-        return self.radius
-    
-    def set_radius(self, radius:float) -> None:
-        self.radius = radius
-        return None
-    
-    def update_velocity(self, new_velocity:Tuple[float,float,float]) -> None:
-        self.velocity = new_velocity
-        return None
-
-    #Update position after updating velocity
-    def update_position(self) -> None:
-        pos = self.get_position()
-        grid = sMACGrid()
-        
-        # (self.x, self.y, self.z) = runge_kutta_2(pos = pos, vel_field = grid)
-        return None
+    def __init__(self, position:np.ndarray, velocity:np.ndarray) -> None:
+        self.pos = position
+        self.v = velocity
     
     
 class InvalidIndexError(Exception):
@@ -71,13 +43,11 @@ class sMACGrid:
 
 
     #Returns index of the voxel in which the given Particle is present
-    def get_voxel(self, position: Tuple[float,float,float]) -> Tuple[int,int,int]:
+    def get_voxel(self, position: np.ndarray) -> Tuple[int,int,int]:
         voxel_size = self.scale
-        x,y,z = position
-
-        i = x // voxel_size
-        j = y // voxel_size
-        k = z // voxel_size
+        i = position[0] // voxel_size
+        j = position[1] // voxel_size
+        k = position[2] // voxel_size
         
         if(i >= self.domain or j >= self.domain or k >= self.domain):
             raise InvalidIndexError("Particle is out of domain bounds.")
@@ -87,9 +57,9 @@ class sMACGrid:
     #Returns index of the voxel in which the given Particle is present
     def get_voxel_particle(self, particle: Particle) -> Tuple[int,int,int]:
         voxel_size = self.scale
-        i = particle.x // voxel_size
-        j = particle.y // voxel_size
-        k = particle.z // voxel_size
+        i = particle.pos[0] // voxel_size
+        j = particle.pos[1] // voxel_size
+        k = particle.pos[2] // voxel_size
         
         if(i >= self.domain or j >= self.domain or k >= self.domain):
             raise InvalidIndexError("Particle is out of domain bounds.")
@@ -132,8 +102,8 @@ class sMACGrid:
 
         for p in particles:
             assert(p is Particle)
-            (x, y, z) = p.get_position()
-            (u, v, w) = p.get_velocity()
+            (x, y, z) = tuple(p.pos)
+            (u, v, w) = tuple(p.v)
 
             #kernel of size 1: only assigns particles to closest gridpoint
             (x1, y1, z1)= self.get_X_splat_index((x,y,z))
@@ -229,13 +199,12 @@ class sMACGrid:
         else:
             #Extract position and store in list
             for p in particles:
-                pos = p.get_position()
                 idx_curr = self.get_voxel_particle(particle=p)
                 if(idx):
                     assert idx_curr == idx
                 else:
                     idx = idx_curr
-                particles_position_list.append(pos)
+                particles_position_list.append(p.pos)
 
         i,j,k = idx
         values_X = get_sample_points(i,j,k,self.velX_grid)
@@ -250,7 +219,7 @@ class sMACGrid:
         grid_relative_pos_z = []
         
         for p_pos in particles_position_list:
-            x,y,z = p_pos
+            x,y,z = tuple(p_pos)
 
             #Grid position of velocity sampling grid point of the x component at given index (i,j,k)
             nx,ny,nz = self.gridindex_to_position(i,j,k,"velX")
@@ -296,8 +265,7 @@ class sMACGrid:
             #Transfer the interpolated velocity to individual particles
             for i in range(len(bins[cell_idx])):
                 particle = bins[cell_idx][i]
-                vel_update = interpolated_velocity[i]
-                particle.update_velocity(vel_update)
+                particle.v = interpolated_velocity[i]
         
         return None
 

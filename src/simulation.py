@@ -25,7 +25,10 @@ class Simulation(object):
         self.particles = []
         particle_start_pos = (2, 2, 2)
         for i, j, k in np.ndindex((5, 5, 5)):
-            self.particles += [Particle(particle_start_pos[0] + self.scale * i,particle_start_pos[0] + self.scale * j,particle_start_pos[0] + self.scale * k, (0.1, 0.1, 0.1))]
+            self.particles += [Particle(np.array([particle_start_pos[0] + self.scale * i,
+                                particle_start_pos[0] + self.scale * j,
+                                particle_start_pos[0] + self.scale * k]), 
+                                np.array([0.1, 0.1, 0.1]))]
         self.particles_vis = ParticleVisualization(self.particles)
         self.mac_grid = sMACGrid(domain=self.resolution[0], scale=1)
         self.pressure_solver = PressureSolver(self.mac_grid)
@@ -56,11 +59,7 @@ class Simulation(object):
         # TODO: Replace with RK2 step
         # Update the particle position with the new velocity by stepping in the velocity direction
         for p in self.particles:
-            x, y, z = p.get_position()
-            u, v, w = p.get_velocity()
-            p.x = x + dt * u
-            p.y = y + dt * v
-            p.z = z + dt * w
+            p.pos += dt * p.v
 
     def step(self):
         if self.paused:

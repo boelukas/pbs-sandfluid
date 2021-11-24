@@ -9,5 +9,5 @@ class ParticleVisualization(object):
         self.update_particles(particles)
 
     def update_particles(self, particles: List[Particle]):
-        positions = [p.get_position() for p in particles]
+        positions = [p.pos for p in particles]
         self.point_cloud.points = o3d.utility.Vector3dVector(np.array(positions))
