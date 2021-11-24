@@ -3,7 +3,8 @@ import taichi as ti
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
-from RK2 import runge_kutta_2
+# Cycle import boyyys
+# from RK2 import runge_kutta_2
 
 # ti.init(debug=True, arch=ti.cpu)
 ti.init(arch=ti.cpu)
@@ -39,7 +40,7 @@ class Particle:
         pos = self.get_position()
         grid = sMACGrid()
         
-        (self.x, self.y, self.z) = runge_kutta_2(pos = pos, vel_field = grid)
+        # (self.x, self.y, self.z) = runge_kutta_2(pos = pos, vel_field = grid)
         return None
     
     
@@ -55,15 +56,21 @@ class sMACGrid:
         self.scale = scale
         #grid that stores velocity and pressure attributes
         self.grid_size = int(domain * scale)
+        self.dx = 1
         #Velocity is stored at the faces of the cell/voxel along the corresponding axis
         self.velX_grid = ti.field(ti.f32,shape=(self.grid_size+1,self.grid_size,self.grid_size))
         self.velY_grid = ti.field(ti.f32,shape=(self.grid_size,self.grid_size+1,self.grid_size))
         self.velZ_grid = ti.field(ti.f32,shape=(self.grid_size,self.grid_size,self.grid_size+1))
+        
+        self.forceX_grid = ti.field(ti.f32,shape=(self.grid_size+1,self.grid_size,self.grid_size))
+        self.forceY_grid = ti.field(ti.f32,shape=(self.grid_size,self.grid_size+1,self.grid_size))
+        self.forceZ_grid = ti.field(ti.f32,shape=(self.grid_size,self.grid_size,self.grid_size+1))
         #Pressure is sampled at the cell center
         self.pressure_grid = ti.field(ti.f32,shape=(self.grid_size,self.grid_size,self.grid_size))
         #Indicates which cell has fluid particles (1) and which not (0)
         #NOTE: Has to be initialized/set after the advection of particles on the grid
         self.has_particles = ti.field(ti.f32,shape=(self.grid_size,self.grid_size,self.grid_size))
+        self.divergence_grid = ti.field(ti.f32, shape=(self.grid_size,self.grid_size,self.grid_size))
 
     
     #Returns index of the voxel in which the given Particle is present
@@ -128,7 +135,7 @@ class sMACGrid:
            values[7] * x * y * z
         return res
 
-    def index_in_bounds(self, i:int, j:int, k:int, grid:ti.lang.field.ScalarField) -> bool:
+    def index_in_bounds(self, i:int, j:int, k:int, grid:ti.template()) -> bool:
         shape = grid.shape
         if(i >= shape[0] or j >= shape[1] or k >= shape[2]):
                 #raise InvalidIndexError("Index is out of bounds.")
@@ -277,3 +284,7 @@ class sMACGrid:
         """
         return NotImplementedError
 
+    @ti.func
+    def clear_field(self, target_field: ti.template(), zero_value: ti.template() = 0):
+        for x, y, z in ti.ndrange(target_field.shape[0], target_field.shape[1], target_field.shape[2]):
+            target_field[x, y, z] = zero_value
