@@ -3,9 +3,6 @@ import taichi as ti
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
-# Cycle import boyyys
-# from RK2 import runge_kutta_2
-
 # ti.init(debug=True, arch=ti.cpu)
 ti.init(arch=ti.cpu)
 #ti.init(arch=ti.gpu)
@@ -72,7 +69,7 @@ class sMACGrid:
         self.has_particles = ti.field(ti.f32,shape=(self.grid_size,self.grid_size,self.grid_size))
         self.divergence_grid = ti.field(ti.f32, shape=(self.grid_size,self.grid_size,self.grid_size))
 
-    
+
     #Returns index of the voxel in which the given Particle is present
     def get_voxel(self, position: Tuple[float,float,float]) -> Tuple[int,int,int]:
         voxel_size = self.scale
@@ -116,7 +113,49 @@ class sMACGrid:
             
         return pos
 
-    #Transfer values of particle velocities on the grid with weighest nearest neighbour averaging.
+    def weigthed_average(self, particles: list(Tuple[Tuple[float,float,float], float]), pos: Tuple[float,float,float]) -> float:
+        #TODO: implement weighted average according to slides
+        return None
+
+    #Transfer values of particle velocities on the grid with weighted neighbourhood averaging.
+    def splat_velocity(self, particles: list(Particle)) -> None:
+        #initialize array for final grid values
+        size = self.grid_size
+        valuesX = np.ndarray(size+1,size,size)
+        valuesY = np.ndarray(size,size+1,size)
+        valuesZ = np.ndarray(size,size,size+1)
+
+        #initialize bins as lists
+        binsX = [ [ []*size ]*size ] * (size+1)
+        binsY = [ [ []*size ]* (size+1) ] * size
+        binsZ = [ [ []*(size+1) ]*size ] * size
+
+        for p in particles:
+            assert(p is Particle)
+            (x, y, z) = p.get_position()
+            (u, v, w) = p.get_velocity()
+
+            #kernel of size 1: only assigns particles to closest gridpoint
+            (x1, y1, z1)= self.get_X_splat_index((x,y,z))
+            binsX[x1][y1][z1].append(((x,y,z), u))
+
+            #TODO: for binsY and binsZ
+        
+        for i in range(len(binsX)):
+            for j in range(len(binsX[i])):
+                for k in range(len(binsX[i][j])):
+                    particles = binsX[i][j][k]
+                    if particles: #len > 0
+                        #position of gridpoint is in the middle of x-surface
+                        valuesX[i,j,k] = self.weighted_average(particles = particles, pos = (float(i), float(j)-0.5, float(k)-0.5))
+
+        #TODO: for valuesY and valuesZ
+
+        self.set_grid_velocity(valuesX, valuesY, valuesZ)
+
+        return None
+
+    #Set new grid velocity
     def set_grid_velocity(self, valuesX: np.ndarray, valuesY: np.ndarray, valuesZ: np.ndarray) -> None:
         self.velX_grid.from_numpy(valuesX)
         self.velY_grid.from_numpy(valuesY)
@@ -273,16 +312,46 @@ class sMACGrid:
     def update_pressure(self) -> None:
         return NotImplementedError
 
-    #Sample interpolated velocity for (x,y,z) coordinates
-    #Used in RK2 method
-    def get_interpolated_velocity(self, pos: Tuple[float,float,float]) -> Tuple[float,float,float]:
-        
-        """
+    # Solve Runge-Kutta ODE of second order
+    # https://stackoverflow.com/questions/35258628/what-will-be-python-code-for-runge-kutta-second-method
+    
+    STEP_SIZE = 1.
+    """
         #Template Code
         rk2_position = (1.0,2.0,3.0)
         rk2_vel = self.sample_velocity(rk2_position,RK2=True)
-        """
-        return NotImplementedError
+    """
+
+    def runge_kutta_2(
+        self,
+        pos: Tuple[float,float,float],
+        t: np.array() = np.linspace(1/STEP_SIZE, STEP_SIZE, 5)
+
+        ) -> Tuple[float,float,float]:
+
+        n = len(t)
+        x = np.array([pos] * n)
+        for i in range(n-1):
+            h = t[i+1]- t[i] # 1/5 in our case
+
+            k1 = h * self.dxdt(x[i], t[i])
+            x[i+1] = x[i] + h * self.dxdt(x[i] + k1, t[i] + h/2.0)
+
+        # return x
+        return x[n-1]
+
+    def dxdt(self, x: Tuple[float,float,float], t: float) -> Tuple[float,float,float]:
+        # computes velocity at point x at time t given a velocity field
+
+        # use Euler Step Method (implicit/explicit/midpoint) to solve first order ODE
+        # TODO: Change to more stable solution
+        vel_x = self.trilinear_interpolation(x)
+        
+        # forward
+        y = x + t*vel_x
+        dx = self.trilinear_interpolation(y)
+
+        return dx
 
     @ti.func
     def clear_field(self, target_field: ti.template(), zero_value: ti.template() = 0):
