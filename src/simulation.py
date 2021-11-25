@@ -55,6 +55,7 @@ class Simulation(object):
         self.pressure_solver.project(dt)
 
         # TODO: Bring the new velocity to the particles
+        self.mac_grid.sample_velocity(self.particles)
 
         # TODO: Replace with RK2 step
         # Update the particle position with the new velocity by stepping in the velocity direction
