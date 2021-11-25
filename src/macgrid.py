@@ -21,10 +21,11 @@ class sMACGrid:
     def __init__(self, domain:int, scale:float) -> None:
         #size of the cubic simulation domain
         self.domain = domain
-        #determines the voxel size
+        #determines the number of voxels the domain is divided into.
         self.scale = scale
+        self.voxel_size = float(domain/scale)
         #grid that stores velocity and pressure attributes
-        self.grid_size = int(domain * scale)
+        self.grid_size = int(scale)
         self.dx = 1
         #Velocity is stored at the faces of the cell/voxel along the corresponding axis
         self.velX_grid = ti.field(ti.f32,shape=(self.grid_size+1,self.grid_size,self.grid_size))
@@ -44,10 +45,10 @@ class sMACGrid:
 
     #Returns index of the voxel in which the given Particle is present
     def get_voxel(self, position: np.ndarray) -> Tuple[int,int,int]:
-        voxel_size = self.scale
-        i = position[0] // voxel_size
-        j = position[1] // voxel_size
-        k = position[2] // voxel_size
+        voxel_size = self.voxel_size
+        i = int(position[0] // voxel_size)
+        j = int(position[1] // voxel_size)
+        k = int(position[2] // voxel_size)
         
         if(i >= self.domain or j >= self.domain or k >= self.domain):
             raise InvalidIndexError("Particle is out of domain bounds.")
@@ -56,10 +57,10 @@ class sMACGrid:
 
     #Returns index of the voxel in which the given Particle is present
     def get_voxel_particle(self, particle: Particle) -> Tuple[int,int,int]:
-        voxel_size = self.scale
-        i = particle.pos[0] // voxel_size
-        j = particle.pos[1] // voxel_size
-        k = particle.pos[2] // voxel_size
+        voxel_size = self.voxel_size
+        i = int(particle.pos[0] // voxel_size)
+        j = int(particle.pos[1] // voxel_size)
+        k = int(particle.pos[2] // voxel_size)
         
         if(i >= self.domain or j >= self.domain or k >= self.domain):
             raise InvalidIndexError("Particle is out of domain bounds.")
@@ -70,13 +71,13 @@ class sMACGrid:
     def gridindex_to_position(self, i:int, j:int, k:int, grid:str) -> Tuple[float,float,float]:
 
         if(grid == "velX"):
-            pos = (i*self.scale, (j + 0.5)*self.scale, (k + 0.5)*self.scale)
+            pos = (i*self.voxel_size, (j + 0.5)*self.voxel_size, (k + 0.5)*self.voxel_size)
         elif(grid == "velY"):
-            pos = ((i + 0.5)*self.scale, j*self.scale, (k + 0.5)*self.scale)
+            pos = ((i + 0.5)*self.voxel_size, j*self.voxel_size, (k + 0.5)*self.voxel_size)
         elif(grid == "velZ"):
-            pos = ((i + 0.5)*self.scale, (j + 0.5)*self.scale, k*self.scale)
+            pos = ((i + 0.5)*self.voxel_size, (j + 0.5)*self.voxel_size, k*self.voxel_size)
         elif(grid == "pressure"):
-            pos = ((i + 0.5)*self.scale, (j + 0.5)*self.scale, (k + 0.5)*self.scale)
+            pos = ((i + 0.5)*self.voxel_size, (j + 0.5)*self.voxel_size, (k + 0.5)*self.voxel_size)
         else:
             print("No grid specified.")
             return None
@@ -132,18 +133,6 @@ class sMACGrid:
         self.velZ_grid.from_numpy(valuesZ)
         return None
 
-    def trilinear_interpolation(values: list, position: Tuple[int,int,int]) -> float:
-        x, y, z = position
-        res = values[0] * (1 - x) * (1 - y) * (1 - z) + \
-           values[1] * x * (1 - y) * (1 - z) + \
-           values[2] * (1 - x) * y * (1 - z) + \
-           values[3] * (1 - x) * (1 - y) * z + \
-           values[4] * x * (1 - y) * z + \
-           values[5] * (1 - x) * y * z + \
-           values[6] * x * y * (1 - z) + \
-           values[7] * x * y * z
-        return res
-
     def index_in_bounds(self, i:int, j:int, k:int, grid:ti.template()) -> bool:
         shape = grid.shape
         if(i >= shape[0] or j >= shape[1] or k >= shape[2]):
@@ -163,13 +152,28 @@ class sMACGrid:
         velZ = 0.5 * (self.velZ_grid[i,j,k] + self.velZ_grid[i,j,k+1])
         return (velX,velY,velZ)
 
+    """
+    def trilinear_interpolation(self, values: list, position: Tuple[float,float,float]) -> float:
+        x, y, z = position
+        res = values[0] * (1 - x) * (1 - y) * (1 - z) + \
+           values[1] * x * (1 - y) * (1 - z) + \
+           values[2] * (1 - x) * y * (1 - z) + \
+           values[3] * (1 - x) * (1 - y) * z + \
+           values[4] * x * (1 - y) * z + \
+           values[5] * (1 - x) * y * z + \
+           values[6] * x * y * (1 - z) + \
+           values[7] * x * y * z
+        return res
+    """
+
     #Description: Given grid coordinates of a particle return its sample velocity with trilinear interpolation
     #NOTE: The "Particles" argument must contain all particles within a particular grid cell!! 
     def sample_velocity(self, particles: Union[List[Particle],Tuple[float,float,float]],RK2=False) -> Tuple[float,float,float]:
 
-        def get_sample_points(i,j,k,grid):
+        def get_sample_points(i,j,k,grid,):
 
-            values = np.zeros((2,2,2))
+            
+            values = np.zeros(shape=(2,2,2))
             if(self.index_in_bounds(i,j,k,grid)):
                 values[0,0,0] = grid[i,j,k]
             if(self.index_in_bounds(i,j,k+1,grid)):
@@ -177,15 +181,15 @@ class sMACGrid:
             if(self.index_in_bounds(i,j+1,k,grid)):
                 values[0,1,0] = grid[i,j+1,k]
             if(self.index_in_bounds(i,j+1,k+1,grid)):
-                values[0,1,1] = grid[i,j+1,k]
+                values[0,1,1] = grid[i,j+1,k+1]
             if(self.index_in_bounds(i+1,j,k,grid)):
-                values[1,0,0] = grid[i,j,k]
+                values[1,0,0] = grid[i+1,j,k]
             if(self.index_in_bounds(i+1,j,k+1,grid)):
-                values[1,0,1] = grid[i,j,k+1]
+                values[1,0,1] = grid[i+1,j,k+1]
             if(self.index_in_bounds(i+1,j+1,k,grid)):
-                values[1,1,0] = grid[i,j+1,k]
+                values[1,1,0] = grid[i+1,j+1,k]
             if(self.index_in_bounds(i+1,j+1,k+1,grid)):
-                values[1,1,1] = grid[i,j+1,k]
+                values[1,1,1] = grid[i+1,j+1,k+1]
 
             return values
 
@@ -210,9 +214,9 @@ class sMACGrid:
         values_X = get_sample_points(i,j,k,self.velX_grid)
         values_Y = get_sample_points(i,j,k,self.velY_grid)
         values_Z = get_sample_points(i,j,k,self.velZ_grid)
-        x_axis = np.linspace(0,self.scale,2)
-        y_axis = np.linspace(0,self.scale,2)
-        z_axis = np.linspace(0,self.scale,2)
+        x_axis = np.linspace(0,self.voxel_size,2)
+        y_axis = np.linspace(0,self.voxel_size,2)
+        z_axis = np.linspace(0,self.voxel_size,2)
 
         grid_relative_pos_x = []
         grid_relative_pos_y = []
@@ -224,25 +228,29 @@ class sMACGrid:
             #Grid position of velocity sampling grid point of the x component at given index (i,j,k)
             nx,ny,nz = self.gridindex_to_position(i,j,k,"velX")
             #Grid-relative coordinates required for interpolation
-            gx,gy,gz = x-nx, y-ny, z-nz
+            gx,gy,gz = max(0,x-nx), max(0,y-ny), max(0,z-nz)
             grid_relative_pos_x.append([gx,gy,gz])
             
             #Grid position of velocity sampling grid point of the y component at given index (i,j,k)
             nx,ny,nz = self.gridindex_to_position(i,j,k,"velY")
-            gx,gy,gz = x-nx, y-ny, z-nz
+            gx,gy,gz = max(0,x-nx), max(0,y-ny), max(0,z-nz)
             grid_relative_pos_y.append([gx,gy,gz])
             
             #Grid position of velocity sampling grid point of the z component at given index (i,j,k)
             nx,ny,nz = self.gridindex_to_position(i,j,k,"velZ")
-            gx,gy,gz = x-nx, y-ny, z-nz
+            gx,gy,gz = max(0,x-nx), max(0,y-ny), max(0,z-nz)
             grid_relative_pos_z.append([gx,gy,gz])
-            
+
         interpolated_X = RegularGridInterpolator(points=(x_axis,y_axis,z_axis),values=values_X)(grid_relative_pos_x)
         interpolated_Y = RegularGridInterpolator(points=(x_axis,y_axis,z_axis),values=values_Y)(grid_relative_pos_y)
         interpolated_Z = RegularGridInterpolator(points=(x_axis,y_axis,z_axis),values=values_Z)(grid_relative_pos_z)
 
-        particle_velocities = list(zip(interpolated_X,interpolated_Y,interpolated_Z))
-        return particle_velocities
+        #interpolated_X = self.trilinear_interpolation(values=values_X.flatten().tolist(),position=tuple(grid_relative_pos_x[0]))
+        #interpolated_Y = self.trilinear_interpolation(values=values_Y.flatten().tolist(),position=tuple(grid_relative_pos_y[0]))
+        #interpolated_Z = self.trilinear_interpolation(values=values_Z.flatten().tolist(),position=tuple(grid_relative_pos_z[0]))
+
+        particle_velocities = [list(vel) for vel in zip(interpolated_X,interpolated_Y,interpolated_Z)]
+        return np.array(particle_velocities)
 
 
     #Update velocity after numerically solving NS equations on the grid.
@@ -256,7 +264,10 @@ class sMACGrid:
         bins = {}
         for p in particles:
             grid_cell_idx = self.get_voxel_particle(p)
-            bins[grid_cell_idx] += [p]
+            if(grid_cell_idx in bins):
+                bins[grid_cell_idx] += [p]
+            else:
+                bins[grid_cell_idx] = [p]
         
         #Interpolate velocities for particles per grid cell
         for cell_idx in list(bins.keys()):
