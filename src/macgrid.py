@@ -41,7 +41,9 @@ class sMACGrid:
         #NOTE: Has to be initialized/set after the advection of particles on the grid
         self.has_particles = ti.field(ti.f32,shape=(self.grid_size,self.grid_size,self.grid_size))
         self.divergence_grid = ti.field(ti.f32, shape=(self.grid_size,self.grid_size,self.grid_size))
-
+        
+        #Weight factor for SPH Kernel
+        self.sph_kernel = 315./(64.*np.pi*(self.voxel_size**9))
 
     #Returns index of the voxel in which the given Particle is present
     def get_voxel(self, position: np.ndarray) -> Tuple[int,int,int]:
@@ -84,9 +86,47 @@ class sMACGrid:
             
         return pos
 
-    # def weigthed_average(self, particles: list(Tuple[Tuple[float,float,float], float]), pos: Tuple[float,float,float]) -> float:
-    #     #TODO: implement weighted average according to slides
-    #     return None
+    #Returns index of velocity array to which the given Particle is closest (kernel size = 1 voxel)
+    def get_splat_index(self, pos: np.ndarray, grid:str) -> Tuple[int,int,int]:
+        voxel_size = self.voxel_size
+        grid_pos = pos/voxel_size
+
+        if(grid == "velX"):
+            i = int(round(grid_pos[0]))
+            j = int(round(grid_pos[1]-0.5))
+            k = int(round(grid_pos[2]-0.5))
+        elif(grid == "velY"):
+            i = int(round(grid_pos[0]-0.5))
+            j = int(round(grid_pos[1]))
+            k = int(round(grid_pos[2]-0.5))
+        elif(grid == "velZ"):
+            i = int(round(grid_pos[0]-0.5))
+            j = int(round(grid_pos[1]-0.5))
+            k = int(round(grid_pos[2]))
+        else:
+            print("No grid specified.")
+            return None
+            
+        
+        if(i >= self.domain or j >= self.domain or k >= self.domain):
+            raise InvalidIndexError("Particle is out of domain bounds.")
+
+        return (i,j,k)
+
+    def weigthed_average(self, particles: List[Tuple[np.ndarray, float]], pos: np.ndarray) -> float:
+        weights = []
+        vel = []
+
+        for (p, v) in particles:
+            vel.append(v)
+            dist = np.linalg.norm(p-pos)
+            w = self.sph_kernel*(self.voxel_size**2 - dist**2)
+            weights.append(w)
+
+        vel = np.asarray(vel)
+        weights = np.asarray(weights)
+        avg = np.average(a = vel, weights = weights)
+        return avg
 
     #Transfer values of particle velocities on the grid with weighted neighbourhood averaging.
     def splat_velocity(self, particles: List[Particle]) -> None:
@@ -103,24 +143,45 @@ class sMACGrid:
 
         for p in particles:
             assert(p is Particle)
-            (x, y, z) = tuple(p.pos)
+            pos = p.pos
             (u, v, w) = tuple(p.v)
 
             #kernel of size 1: only assigns particles to closest gridpoint
-            (x1, y1, z1)= self.get_X_splat_index((x,y,z))
-            binsX[x1][y1][z1].append(((x,y,z), u))
+            (x1, y1, z1)= self.get_splat_index(pos, "velX")
+            binsX[x1][y1][z1].append((pos, u))
 
-            #TODO: for binsY and binsZ
+            (x2, y2, z2)= self.get_splat_index(pos, "velY")
+            binsY[x2][y2][z2].append((pos, v))
+
+            (x3, y3, z3)= self.get_splat_index(pos, "velZ")
+            binsZ[x3][y3][z3].append((pos, w))
+
         
         for i in range(len(binsX)):
             for j in range(len(binsX[i])):
                 for k in range(len(binsX[i][j])):
-                    particles = binsX[i][j][k]
-                    if particles: #len > 0
+                    closest_particles = binsX[i][j][k]
+                    if closest_particles: #len > 0
                         #position of gridpoint is in the middle of x-surface
-                        valuesX[i,j,k] = self.weighted_average(particles = particles, pos = (float(i), float(j)-0.5, float(k)-0.5))
-
-        #TODO: for valuesY and valuesZ
+                        grid_pos = np.asarray(self.gridindex_to_position(i, j, k, "velX"))
+                        valuesX[i,j,k] = self.weigthed_average(particles = closest_particles, pos = grid_pos)
+        for i in range(len(binsY)):
+            for j in range(len(binsY[i])):
+                for k in range(len(binsY[i][j])):
+                    closest_particles = binsX[i][j][k]
+                    if closest_particles: #len > 0
+                        #position of gridpoint is in the middle of y-surface
+                        grid_pos = np.asarray(self.gridindex_to_position(i, j, k, "velY"))
+                        valuesY[i,j,k] = self.weigthed_average(particles = closest_particles, pos = grid_pos)
+        for i in range(len(binsZ)):
+            for j in range(len(binsZ[i])):
+                for k in range(len(binsZ[i][j])):
+                    closest_particles = binsX[i][j][k]
+                    if closest_particles: #len > 0
+                        #position of gridpoint is in the middle of z-surface
+                        grid_pos = np.asarray(self.gridindex_to_position(i, j, k, "velZ"))
+                        valuesZ[i,j,k] = self.weigthed_average(particles = closest_particles, pos = grid_pos)
+        
 
         self.set_grid_velocity(valuesX, valuesY, valuesZ)
 
@@ -170,7 +231,7 @@ class sMACGrid:
     #NOTE: The "Particles" argument must contain all particles within a particular grid cell!! 
     def sample_velocity(self, particles: Union[List[Particle],Tuple[float,float,float]],RK2=False) -> Tuple[float,float,float]:
 
-        def get_sample_points(i,j,k,grid,):
+        def get_sample_points(i,j,k,grid):
 
             
             values = np.zeros(shape=(2,2,2))
@@ -295,18 +356,13 @@ class sMACGrid:
     # https://stackoverflow.com/questions/35258628/what-will-be-python-code-for-runge-kutta-second-method
     
     STEP_SIZE = 1.
-    """
-        #Template Code
-        rk2_position = (1.0,2.0,3.0)
-        rk2_vel = self.sample_velocity(rk2_position,RK2=True)
-    """
 
     def runge_kutta_2(
         self,
-        pos: Tuple[float,float,float],
+        pos: np.ndarray,
         t: np.ndarray= np.linspace(1/STEP_SIZE, STEP_SIZE, 5)
 
-        ) -> Tuple[float,float,float]:
+        ) -> np.ndarray:
 
         n = len(t)
         x = np.array([pos] * n)
@@ -319,16 +375,16 @@ class sMACGrid:
         # return x
         return x[n-1]
 
-    def dxdt(self, x: Tuple[float,float,float], t: float) -> Tuple[float,float,float]:
+    def dxdt(self, x: np.ndarray, t: float) -> np.ndarray:
         # computes velocity at point x at time t given a velocity field
 
         # use Euler Step Method (implicit/explicit/midpoint) to solve first order ODE
         # TODO: Change to more stable solution
-        vel_x = self.trilinear_interpolation(x)
+        vel_x = self.sample_velocity(x, RK2=True)
         
         # forward
         y = x + t*vel_x
-        dx = self.trilinear_interpolation(y)
+        dx = self.sample_velocity(y, RK2=True)
 
         return dx
 
