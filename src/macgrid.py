@@ -132,55 +132,51 @@ class sMACGrid:
     def splat_velocity(self, particles: List[Particle]) -> None:
         #initialize array for final grid values
         size = self.grid_size
-        valuesX = np.ndarray(size+1,size,size)
-        valuesY = np.ndarray(size,size+1,size)
-        valuesZ = np.ndarray(size,size,size+1)
+        valuesX = np.zeros((size+1,size,size))
+        valuesY = np.zeros((size,size+1,size))
+        valuesZ = np.zeros((size,size,size+1))
 
         #initialize bins as lists
-        binsX = [ [ []*size ]*size ] * (size+1)
-        binsY = [ [ []*size ]* (size+1) ] * size
-        binsZ = [ [ []*(size+1) ]*size ] * size
+        binsX = {}
+        binsY = {}
+        binsZ = {}
 
         for p in particles:
-            assert(p is Particle)
             pos = p.pos
             (u, v, w) = tuple(p.v)
 
             #kernel of size 1: only assigns particles to closest gridpoint
-            (x1, y1, z1)= self.get_splat_index(pos, "velX")
-            binsX[x1][y1][z1].append((pos, u))
+            idx = self.get_splat_index(pos, "velX")
+            if(idx in binsX):
+                binsX[idx].append((pos, u))
+            else:
+                binsX[idx] = [(pos, u)]
 
-            (x2, y2, z2)= self.get_splat_index(pos, "velY")
-            binsY[x2][y2][z2].append((pos, v))
+            idx = self.get_splat_index(pos, "velY")
+            if(idx in binsY):
+                binsY[idx].append((pos, v))
+            else:
+                binsY[idx] = [(pos, v)]
 
-            (x3, y3, z3)= self.get_splat_index(pos, "velZ")
-            binsZ[x3][y3][z3].append((pos, w))
+            idx = self.get_splat_index(pos, "velZ")
+            if(idx in binsZ):
+                binsZ[idx].append((pos, w))
+            else:
+                binsZ[idx] = [(pos, w)]
 
         
-        for i in range(len(binsX)):
-            for j in range(len(binsX[i])):
-                for k in range(len(binsX[i][j])):
-                    closest_particles = binsX[i][j][k]
-                    if closest_particles: #len > 0
-                        #position of gridpoint is in the middle of x-surface
-                        grid_pos = np.asarray(self.gridindex_to_position(i, j, k, "velX"))
-                        valuesX[i,j,k] = self.weigthed_average(particles = closest_particles, pos = grid_pos)
-        for i in range(len(binsY)):
-            for j in range(len(binsY[i])):
-                for k in range(len(binsY[i][j])):
-                    closest_particles = binsX[i][j][k]
-                    if closest_particles: #len > 0
-                        #position of gridpoint is in the middle of y-surface
-                        grid_pos = np.asarray(self.gridindex_to_position(i, j, k, "velY"))
-                        valuesY[i,j,k] = self.weigthed_average(particles = closest_particles, pos = grid_pos)
-        for i in range(len(binsZ)):
-            for j in range(len(binsZ[i])):
-                for k in range(len(binsZ[i][j])):
-                    closest_particles = binsX[i][j][k]
-                    if closest_particles: #len > 0
-                        #position of gridpoint is in the middle of z-surface
-                        grid_pos = np.asarray(self.gridindex_to_position(i, j, k, "velZ"))
-                        valuesZ[i,j,k] = self.weigthed_average(particles = closest_particles, pos = grid_pos)
+        for (i, j, k) in list(binsX.keys()):
+            closest_particles = binsX[(i, j, k)]
+            grid_pos = np.asarray(self.gridindex_to_position(i, j, k, "velX"))
+            valuesX[i,j,k] = self.weigthed_average(particles = closest_particles, pos = grid_pos)
+        for (i, j, k) in list(binsY.keys()):
+            closest_particles = binsY[(i, j, k)]
+            grid_pos = np.asarray(self.gridindex_to_position(i, j, k, "velY"))
+            valuesY[i,j,k] = self.weigthed_average(particles = closest_particles, pos = grid_pos)
+        for (i, j, k) in list(binsZ.keys()):
+            closest_particles = binsZ[(i, j, k)]
+            grid_pos = np.asarray(self.gridindex_to_position(i, j, k, "velZ"))
+            valuesZ[i,j,k] = self.weigthed_average(particles = closest_particles, pos = grid_pos)
         
 
         self.set_grid_velocity(valuesX, valuesY, valuesZ)

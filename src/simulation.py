@@ -41,7 +41,7 @@ class Simulation(object):
 
     def advance(self, dt: ti.f32, t: ti.f32):
         # TODO: Compute mac_grid.VelX_grid, mac_grid.VelY_grid, mac_grid.VelZ_grid as
-        # weighted average over the particle velocities
+        self.mac_grid.splat_velocity(self.particles)
 
         # Adds gravity to the fluid 
         # -> velocity changed
