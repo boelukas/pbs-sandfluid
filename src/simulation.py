@@ -14,23 +14,22 @@ ti.init(arch=ti.gpu)
 @ti.data_oriented
 class Simulation(object):
     def __init__(self):
-        self.dt = 3e-3
+        self.dt = 3e-1
         self.t = 0.0
         self.resolution = (20, 20, 20)
         self.dx = 1.0
         self.paused = True
         self.draw_convex_hull = False
-        self.scale = 0.5
-        #self.particles = ParticleField(start_pos = ti.Vector((2, 2, 2)), scale = 0.5, shape=(20,20,20))
+        self.scale = 1.0
         self.particles = []
-        particle_start_pos = (2, 2, 2)
+        particle_start_pos = (2.0, 2.0, 2.0)
         for i, j, k in np.ndindex((5, 5, 5)):
-            self.particles += [Particle(np.array([particle_start_pos[0] + self.scale * i,
-                                particle_start_pos[0] + self.scale * j,
-                                particle_start_pos[0] + self.scale * k]), 
-                                np.array([0.1, 0.1, 0.1]))]
-        self.particles_vis = ParticleVisualization(self.particles)
-        self.mac_grid = sMACGrid(domain=self.resolution[0], scale=1)
+            self.particles += [Particle(np.array([particle_start_pos[0] + i,
+                                particle_start_pos[0] + j,
+                                particle_start_pos[0] + k]), 
+                                np.array([0.0, 0.0, 0.0]))]
+        self.particles_vis = ParticleVisualization(self.particles, self.scale)
+        self.mac_grid = sMACGrid(resolution=self.resolution[0])
         self.pressure_solver = PressureSolver(self.mac_grid)
         self.force_solver = ForceSolver(self.mac_grid)
 
@@ -42,11 +41,13 @@ class Simulation(object):
     def advance(self, dt: ti.f32, t: ti.f32):
         # TODO: Compute mac_grid.VelX_grid, mac_grid.VelY_grid, mac_grid.VelZ_grid as
         self.mac_grid.splat_velocity(self.particles)
+        # print(self.mac_grid.velY_grid)
 
         # Adds gravity to the fluid 
         # -> velocity changed
         self.force_solver.compute_forces()
         self.force_solver.apply_forces(dt)
+        # print(self.mac_grid.velY_grid)
 
         # Ensure the fluid stays incompressible: 
         # Add enough pressure to the fluid to make the velocity field have divergence 0
@@ -55,7 +56,7 @@ class Simulation(object):
         self.pressure_solver.project(dt)
 
         # TODO: Bring the new velocity to the particles
-        self.mac_grid.sample_velocity(self.particles)
+        self.mac_grid.grid_to_particles(self.particles)
 
         # TODO: Replace with RK2 step
         # Update the particle position with the new velocity by stepping in the velocity direction
@@ -97,10 +98,10 @@ def main():
     vis.add_geometry(coordinate_frame)  # coordinate frame
 
     points = (
-        [[i, 0, 0] for i in range(sim.resolution[1])]
-        + [[i, 0, sim.resolution[2]- 1] for i in range(sim.resolution[1])]
-        + [[0, 0, i] for i in range(sim.resolution[2])]
-        + [[sim.resolution[1] - 1, 0, i] for i in range(sim.resolution[2])]
+        [[i*sim.scale, 0, 0] for i in range(sim.resolution[1])]
+        + [[i*sim.scale, 0, (sim.resolution[2]- 1)*sim.scale] for i in range(sim.resolution[1])]
+        + [[0, 0, i*sim.scale] for i in range(sim.resolution[2])]
+        + [[(sim.resolution[1] - 1)*sim.scale, 0, i*sim.scale] for i in range(sim.resolution[2])]
     )
     lines = [[i, i + sim.resolution[1]]
              for i in range(sim.resolution[1])] + [[i + 2 *sim.resolution[1], i + 2 *sim.resolution[1] + sim.resolution[2]] for i in range(sim.resolution[2])]
@@ -113,7 +114,7 @@ def main():
     vis.add_geometry(ground_plane, True)  # ground plane
 
     aabb = o3d.geometry.AxisAlignedBoundingBox(
-        min_bound=np.array([0, 0, 0]), max_bound=np.array([sim.resolution[0]-1, sim.resolution[1]-1, sim.resolution[2]-1])
+        min_bound=np.array([0, 0, 0]), max_bound=np.array([(sim.resolution[0]-1) *sim.scale, (sim.resolution[1]-1)*sim.scale, (sim.resolution[2]-1) *sim.scale])
     )
     aabb.color = [0.7, 0.7, 0.7]
     vis.add_geometry(aabb)  # bounding box

@@ -18,14 +18,12 @@ class InvalidIndexError(Exception):
 
 
 class sMACGrid:
-    def __init__(self, domain:int, scale:float) -> None:
-        #size of the cubic simulation domain
-        self.domain = domain
-        #determines the number of voxels the domain is divided into.
-        self.scale = scale
-        self.voxel_size = float(domain/scale)
+    def __init__(self, resolution:int) -> None:
+        #size of the cubic simulation grid_size
+        #determines the number of voxels the grid_size is divided into.
+        self.voxel_size = 1.0
         #grid that stores velocity and pressure attributes
-        self.grid_size = int(scale)
+        self.grid_size = resolution
         self.dx = 1
         #Velocity is stored at the faces of the cell/voxel along the corresponding axis
         self.velX_grid = ti.field(ti.f32,shape=(self.grid_size+1,self.grid_size,self.grid_size))
@@ -52,8 +50,8 @@ class sMACGrid:
         j = int(position[1] // voxel_size)
         k = int(position[2] // voxel_size)
         
-        if(i >= self.domain or j >= self.domain or k >= self.domain):
-            raise InvalidIndexError("Particle is out of domain bounds.")
+        if(i >= self.grid_size or j >= self.grid_size or k >= self.grid_size):
+            raise InvalidIndexError("Particle is out of grid_size bounds.")
 
         return (i,j,k)
 
@@ -64,8 +62,8 @@ class sMACGrid:
         j = int(particle.pos[1] // voxel_size)
         k = int(particle.pos[2] // voxel_size)
         
-        if(i >= self.domain or j >= self.domain or k >= self.domain):
-            raise InvalidIndexError("Particle is out of domain bounds.")
+        if(i >= self.grid_size or j >= self.grid_size or k >= self.grid_size):
+            raise InvalidIndexError("Particle is out of grid_size bounds.")
 
         return (i,j,k)
 
@@ -89,27 +87,26 @@ class sMACGrid:
     #Returns index of velocity array to which the given Particle is closest (kernel size = 1 voxel)
     def get_splat_index(self, pos: np.ndarray, grid:str) -> Tuple[int,int,int]:
         voxel_size = self.voxel_size
-        grid_pos = pos/voxel_size
 
         if(grid == "velX"):
-            i = int(round(grid_pos[0]))
-            j = int(round(grid_pos[1]-0.5))
-            k = int(round(grid_pos[2]-0.5))
+            i = int(round(pos[0]))
+            j = int(round(pos[1]-0.5))
+            k = int(round(pos[2]-0.5))
         elif(grid == "velY"):
-            i = int(round(grid_pos[0]-0.5))
-            j = int(round(grid_pos[1]))
-            k = int(round(grid_pos[2]-0.5))
+            i = int(round(pos[0]-0.5))
+            j = int(round(pos[1]))
+            k = int(round(pos[2]-0.5))
         elif(grid == "velZ"):
-            i = int(round(grid_pos[0]-0.5))
-            j = int(round(grid_pos[1]-0.5))
-            k = int(round(grid_pos[2]))
+            i = int(round(pos[0]-0.5))
+            j = int(round(pos[1]-0.5))
+            k = int(round(pos[2]))
         else:
             print("No grid specified.")
             return None
             
         
-        if(i >= self.domain or j >= self.domain or k >= self.domain):
-            raise InvalidIndexError("Particle is out of domain bounds.")
+        if(i >= self.grid_size or j >= self.grid_size or k >= self.grid_size):
+            raise InvalidIndexError("Particle is out of grid_size bounds.")
 
         return (i,j,k)
 
@@ -310,10 +307,6 @@ class sMACGrid:
         return np.array(particle_velocities)
 
 
-    #Update velocity after numerically solving NS equations on the grid.
-    def update_velocity(self) -> None:
-        return NotImplementedError
-
     #Velocity projection step of PIC solver. Update grid velocities after solving pressure equations.
     def grid_to_particles(self, particles:List[Particle]) -> None:
         
@@ -343,10 +336,6 @@ class sMACGrid:
         #Currently: This returns the pressure stored within the center of the voxel in which a given particle is present
         pressure = self.pressure_grid[i,j,k]
         return pressure
-    
-    #Update Pressure
-    def update_pressure(self) -> None:
-        return NotImplementedError
 
     # Solve Runge-Kutta ODE of second order
     # https://stackoverflow.com/questions/35258628/what-will-be-python-code-for-runge-kutta-second-method
