@@ -27,7 +27,7 @@ class Simulation(object):
             self.particles += [Particle(np.array([particle_start_pos[0] + i,
                                 particle_start_pos[0] + j,
                                 particle_start_pos[0] + k]), 
-                                np.array([0.0, 0.0, 0.0]))]
+                                np.array([2.0, 0.0, 2.0]))]
         self.particles_vis = ParticleVisualization(self.particles, self.scale)
         self.mac_grid = sMACGrid(resolution=self.resolution[0])
         self.pressure_solver = PressureSolver(self.mac_grid)
@@ -39,7 +39,7 @@ class Simulation(object):
         self.t = 0.0
 
     def advance(self, dt: ti.f32, t: ti.f32):
-        # TODO: Compute mac_grid.VelX_grid, mac_grid.VelY_grid, mac_grid.VelZ_grid as
+        # Compute mac_grid.VelX_grid, mac_grid.VelY_grid, mac_grid.VelZ_grid as
         self.mac_grid.splat_velocity(self.particles)
         # print(self.mac_grid.velY_grid)
 
@@ -52,16 +52,17 @@ class Simulation(object):
         # Ensure the fluid stays incompressible: 
         # Add enough pressure to the fluid to make the velocity field have divergence 0
         # -> velocity changed
-        self.pressure_solver.compute_pressure(dt)
-        self.pressure_solver.project(dt)
+        # self.pressure_solver.compute_pressure(dt)
+        # self.pressure_solver.project(dt)
 
-        # TODO: Bring the new velocity to the particles
+        # Bring the new velocity to the particles
         self.mac_grid.grid_to_particles(self.particles)
 
         # TODO: Replace with RK2 step
         # Update the particle position with the new velocity by stepping in the velocity direction
         for p in self.particles:
-            p.pos += dt * p.v
+            #p.pos = self.mac_grid.runge_kutta_2(p.pos, dt)
+            p.pos = self.mac_grid.midpoint_euler(p.pos, dt)
 
     def step(self):
         if self.paused:

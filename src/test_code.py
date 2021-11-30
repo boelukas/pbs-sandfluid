@@ -4,7 +4,7 @@ import numpy as np
 
 
 def test_particle_velocity():
-    sim_domain = sMACGrid(domain=4,scale=4)
+    sim_domain = sMACGrid(resolution = 20)
     test_particle = Particle(position=np.array([1.125,1.125,1.125]),velocity=np.zeros(3))
     test_particle2 = Particle(position=np.array([1.625,1.375,1.875]),velocity=np.zeros(3))
     particles = [test_particle,test_particle2]
@@ -24,7 +24,7 @@ def test_particle_velocity():
     return
 
 def test_splatting():
-    sim_domain = sMACGrid(domain=4,scale=4)
+    sim_domain = sMACGrid(resolution = 20)
     test_particle = Particle(position=np.array([0.5,0.4,0.75]),velocity=np.array([0.5, 1.1, 0.6]))
     test_particle2 = Particle(position=np.array([0.5,0.6,1.25]),velocity=np.array([0.7, 0.9, 0.8]))
     particles = [test_particle,test_particle2]
@@ -42,10 +42,30 @@ def test_splatting():
     print(sim_domain.velY_grid)
     print("--- Vel Z ---")
     print(sim_domain.velZ_grid)
-    
+    return
+
+def test_runge_kutta_euler():
+    sim_domain = sMACGrid(resolution = 20)
+    test_particle  = Particle(position=np.array([0., 0.5, 0.5]),velocity=np.array([0.1, 0.1, 0.1]))
+    test_particle2 = Particle(position=np.array([1., 0.5, 0.5]),velocity=np.array([0.1, 0.1, 0.1]))
+    test_particle3 = Particle(position=np.array([0.5, 0., 0.5]),velocity=np.array([0.1, 0.1, 0.1]))
+    test_particle4 = Particle(position=np.array([0.5, 1., 0.5]),velocity=np.array([0.1, 0.1, 0.1]))
+    test_particle5 = Particle(position=np.array([0.5, 0.5, 0.]),velocity=np.array([0.1, 0.1, 0.1]))
+    test_particle6 = Particle(position=np.array([0.5, 0.5, 1.]),velocity=np.array([0.1, 0.1, 0.1]))
+    particles = [test_particle, test_particle2, test_particle3, test_particle4, test_particle5, test_particle6]
+
+    sim_domain.splat_velocity(particles=particles)
+
+    test_pos = np.array([0.5, 0.5, 0.5])
+    vel = sim_domain.runge_kutta_2(test_pos, 3e-1)
+    print("RK2: " + str(vel))
+
+    vel = sim_domain.midpoint_euler(test_pos, 3e-1)
+    print("Euler: " + str(vel))
+
     return
 
 if __name__ == '__main__':
     # test_particle_velocity()
-    test_splatting()
-    # test_runge_kutta()
+    # test_splatting()
+    test_runge_kutta_euler()

@@ -4,8 +4,8 @@ import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
 # ti.init(debug=True, arch=ti.cpu)
-ti.init(arch=ti.cpu)
-#ti.init(arch=ti.gpu)
+# ti.init(arch=ti.cpu)
+ti.init(arch=ti.gpu)
 
 class Particle:
     def __init__(self, position:np.ndarray, velocity:np.ndarray) -> None:
@@ -126,7 +126,7 @@ class sMACGrid:
         return avg
 
     #Transfer values of particle velocities on the grid with weighted neighbourhood averaging.
-    def splat_velocity(self, particles: List[Particle]) -> None:
+    def splat_velocity(self, particles: List[Particle], small_kernel = True) -> None:
         #initialize array for final grid values
         size = self.grid_size
         valuesX = np.zeros((size+1,size,size))
@@ -142,26 +142,43 @@ class sMACGrid:
             pos = p.pos
             (u, v, w) = tuple(p.v)
 
-            #kernel of size 1: only assigns particles to closest gridpoint
-            idx = self.get_splat_index(pos, "velX")
-            if(idx in binsX):
-                binsX[idx].append((pos, u))
-            else:
-                binsX[idx] = [(pos, u)]
+            if small_kernel:
+                #kernel of size 1: only assigns particles to closest gridpoint
+                idx = self.get_splat_index(pos, "velX")
+                for x in range(max(0, idx[0]-1), min(self.grid_size, idx[0]+1)):
+                    for y in range(max(0, idx[1]-1), min(self.grid_size, idx[1]+1)):
+                        for z in range(max(0, idx[2]-1), min(self.grid_size, idx[2]+1)):
+                            temp =(x, y, z)
+                            if(temp in binsX):
+                                binsX[temp].append((pos, u))
+                            else:
+                                binsX[temp] = [(pos, u)]
 
-            idx = self.get_splat_index(pos, "velY")
-            if(idx in binsY):
-                binsY[idx].append((pos, v))
-            else:
-                binsY[idx] = [(pos, v)]
+                idx = self.get_splat_index(pos, "velY")
+                for x in range(max(0, idx[0]-1), min(self.grid_size, idx[0]+1)):
+                    for y in range(max(0, idx[1]-1), min(self.grid_size, idx[1]+1)):
+                        for z in range(max(0, idx[2]-1), min(self.grid_size, idx[2]+1)):
+                            temp =(x, y, z)
+                            if(temp in binsY):
+                                binsY[temp].append((pos, v))
+                            else:
+                                binsY[temp] = [(pos, v)]
 
-            idx = self.get_splat_index(pos, "velZ")
-            if(idx in binsZ):
-                binsZ[idx].append((pos, w))
-            else:
-                binsZ[idx] = [(pos, w)]
+                idx = self.get_splat_index(pos, "velZ")
+                for x in range(max(0, idx[0]-1), min(self.grid_size, idx[0]+1)):
+                    for y in range(max(0, idx[1]-1), min(self.grid_size, idx[1]+1)):
+                        for z in range(max(0, idx[2]-1), min(self.grid_size, idx[2]+1)):
+                            temp =(x, y, z)
+                            if(temp in binsZ):
+                                binsZ[temp].append((pos, w))
+                            else:
+                                binsZ[temp] = [(pos, w)]
 
-        
+            else:
+                #kernel of size 3: also assigns particles to adjecent gridpoints
+                idx = self.get_splat_index(pos, "velX")
+                raise NotImplementedError
+
         for (i, j, k) in list(binsX.keys()):
             closest_particles = binsX[(i, j, k)]
             grid_pos = np.asarray(self.gridindex_to_position(i, j, k, "velX"))
@@ -174,7 +191,6 @@ class sMACGrid:
             closest_particles = binsZ[(i, j, k)]
             grid_pos = np.asarray(self.gridindex_to_position(i, j, k, "velZ"))
             valuesZ[i,j,k] = self.weigthed_average(particles = closest_particles, pos = grid_pos)
-        
 
         self.set_grid_velocity(valuesX, valuesY, valuesZ)
 
@@ -337,18 +353,23 @@ class sMACGrid:
         pressure = self.pressure_grid[i,j,k]
         return pressure
 
+    def midpoint_euler(self, pos: np.ndarray, step_size: float) -> np.ndarray:
+        timestep = step_size/2
+        expl_pos = pos + step_size * self.dxdt(pos + step_size/2 * self.sample_velocity(pos, RK2=True)[0], timestep)
+        impl_pos = pos + step_size * self.dxdt(0.5 * (pos + expl_pos), timestep)
+
+        return impl_pos
+
     # Solve Runge-Kutta ODE of second order
     # https://stackoverflow.com/questions/35258628/what-will-be-python-code-for-runge-kutta-second-method
-    
-    STEP_SIZE = 1.
 
     def runge_kutta_2(
         self,
         pos: np.ndarray,
-        t: np.ndarray= np.linspace(1/STEP_SIZE, STEP_SIZE, 5)
-
+        dt: float
         ) -> np.ndarray:
 
+        t = np.linspace(0.2*dt, dt, 5)
         n = len(t)
         x = np.array([pos] * n)
         for i in range(n-1):
@@ -368,10 +389,10 @@ class sMACGrid:
         vel_x = self.sample_velocity(x, RK2=True)
         
         # forward
-        y = x + t*vel_x
+        y = x + t*vel_x[0]
         dx = self.sample_velocity(y, RK2=True)
 
-        return dx
+        return dx[0]
 
     @ti.func
     def clear_field(self, target_field: ti.template(), zero_value: ti.template() = 0):
