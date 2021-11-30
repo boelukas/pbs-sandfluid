@@ -27,7 +27,7 @@ class Simulation(object):
             self.particles += [Particle(np.array([particle_start_pos[0] + i,
                                 particle_start_pos[0] + j,
                                 particle_start_pos[0] + k]), 
-                                np.array([2.0, 0.0, 2.0]))]
+                                np.array([0.0, 0.0, 0.0]))]
         self.particles_vis = ParticleVisualization(self.particles, self.scale)
         self.mac_grid = sMACGrid(resolution=self.resolution[0])
         self.pressure_solver = PressureSolver(self.mac_grid)
