@@ -707,7 +707,8 @@ class sMACGrid:
 
     def midpoint_euler(self, pos: np.ndarray, step_size: float) -> np.ndarray:
         timestep = step_size/2
-        expl_pos = pos + step_size * self.dxdt(pos + step_size/2 * self.sample_velocity(pos, RK2=True)[0], timestep)
+        temp_vel = self.dxdt(pos + timestep * self.sample_velocity(pos, RK2=True)[0], timestep)
+        expl_pos = pos + step_size * temp_vel
         impl_pos = pos + step_size * self.dxdt(0.5 * (pos + expl_pos), timestep)
 
         return impl_pos
@@ -735,13 +736,13 @@ class sMACGrid:
 
     def dxdt(self, x: np.ndarray, t: float) -> np.ndarray:
         # computes velocity at point x at time t given a velocity field
-
-        # use Euler Step Method (implicit/explicit/midpoint) to solve first order ODE
-        # TODO: Change to more stable solution
+        # x_bound = np.maximum(np.zeros(3), np.minimum(np.array([self.grid_size] * 3), x))
         vel_x = self.sample_velocity(x, RK2=True)
         
         # forward
         y = x + t*vel_x[0]
+        
+        # y_bound = np.maximum(np.zeros(3), np.minimum(np.array([self.grid_size] * 3), y))
         dx = self.sample_velocity(y, RK2=True)
 
         return dx[0]
