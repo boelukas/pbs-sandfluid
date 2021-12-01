@@ -111,6 +111,14 @@ class MacGrid:
             else:
                 self.cell_type[i, j, k] = CellType.AIR.value
 
+    @ti.func
+    def reset_cell_type(self):
+        self.clear_field(self.cell_type)
+
+        for i, j, k in self.cell_type:
+            if i == 0 or j == 0 or k == 0 or i == self.grid_size -1 or j ==self.grid_size -1 or k == self.grid_size -1:
+                self.cell_type[i, j, k] = CellType.SOLID.value
+    
     # Initializes the particles to 8 particles per grid cell.
     # The positions are for grid cell i: i + 0.25 + rand and i + 0.75 + rand
     # In all dimensions and for a rand jitter between [-0.25, 0.25]
@@ -153,7 +161,41 @@ class MacGrid:
     @ti.func
     def clamp(self, x, min_bound, max_bound):
         return max(min_bound, min(x, max_bound))
-    
+
+    @ti.kernel
+    def update_markers(self):
+        #Wipe out old marker grid and initialize the new grid with domain bounds.
+        self.reset_cell_type()
+
+        #Mark cells that contain at least one particle with SAND
+        for i,j,k in self.particle_pos:
+            if self.particle_active[i,j,k] == 1:
+                p_pos = self.particle_pos[i,j,k]
+                #Get cell idx in which the particle currently resides
+                grid_i = self.clamp(int(p_pos[0]),0,self.grid_size-1)
+                grid_j = self.clamp(int(p_pos[1]),0,self.grid_size-1)
+                grid_k = self.clamp(int(p_pos[2]),0,self.grid_size-1)
+
+                #Check whether cell is solid (boundary)
+                if(self.cell_type[grid_i,grid_j,grid_k] != CellType.SOLID.value):
+                    self.cell_type[grid_i,grid_j,grid_k] = CellType.SAND.value
+        
+        #Mark the uninitialized cells with AIR
+        for i,j,k in ti.ndrange(*self.cell_type.shape):
+            if(self.cell_type[i,j,k] != CellType.SOLID.value and self.cell_type[i,j,k] != CellType.SAND.value):
+                self.cell_type[i,j,k] = CellType.AIR.value
+
+    @ti.kernel
+    def neumann_boundary_conditions(self):
+        for i,j,k in ti.ndrange(*self.cell_type.shape):
+            if self.cell_type[i,j,k] == CellType.SOLID.value:
+                self.v_x[i,j,k] = 0.
+                self.v_x[i+1,j,k] = 0.
+                self.v_y[i,j,k] = 0.
+                self.v_y[i,j+1,k] = 0.
+                self.v_z[i,j,k] = 0.
+                self.v_z[i,j,k+1] = 0.
+        
     # Sample grid with grid origin at (x_offset, y_offset, z_offset)
     @ti.func
     def sample(self, grid, x, y, z, x_offset, y_offset, z_offset, x_resolution, y_resolution, z_resolution):

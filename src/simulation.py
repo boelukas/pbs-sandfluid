@@ -54,6 +54,9 @@ class Simulation(object):
         # self.pressure_solver.compute_pressure(dt)
         # self.pressure_solver.project(dt)
 
+        # Apply boundary conditions so that particles do not disappear out of the domain
+        self.alternative_mac_grid.neumann_boundary_conditions()
+
         # Bring the new velocity to the particles
         # self.mac_grid.grid_to_particles(self.particles)
         self.alternative_mac_grid.grid_to_particles()
@@ -63,6 +66,9 @@ class Simulation(object):
         
         # self.alternative_mac_grid.advect_particles_midpoint(dt)
         self.alternative_mac_grid.advect_particles(dt)
+
+        # Re-Mark the cells after advection step into SOLID, SAND or AIR
+        self.alternative_mac_grid.update_markers()
         
     def step(self):
         if self.paused:
