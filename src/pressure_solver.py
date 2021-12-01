@@ -22,6 +22,7 @@ class PressureSolver(object):
 
             self.mac_grid.divergence_grid[x, y, z] = du_dx + du_dy + du_dz
 
+
     # Computes pressure that will be needed to make the velocity divergence free
     @ti.kernel
     def compute_pressure(self, dt: ti.f32):
@@ -48,8 +49,8 @@ class PressureSolver(object):
     # run Gauss-Seidel as long as max iterations has not been reached and accuracy is not good enough
     @ti.func
     def gauss_seidel(self, dt):
-         # initial guess: p = 0
-        self.mac_grid.clear_field(self.mac_grid.pressure_grid)
+        # initial guess: p = 0
+        # self.mac_grid.clear_field(self.mac_grid.pressure_grid)
 
         dx2 = self.mac_grid.dx * self.mac_grid.dx
         res_x, res_y, res_z = self.mac_grid.pressure_grid.shape
