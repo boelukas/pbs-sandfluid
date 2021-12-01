@@ -60,11 +60,10 @@ class Simulation(object):
 
         # TODO: Replace with RK2 step
         # Update the particle position with the new velocity by stepping in the velocity direction
-        # for p in self.particles:
-        #     #p.pos = self.mac_grid.runge_kutta_2(p.pos, dt)
-        #     p.pos = self.mac_grid.midpoint_euler(p.pos, dt)
+        
+        # self.alternative_mac_grid.advect_particles_midpoint(dt)
         self.alternative_mac_grid.advect_particles(dt)
-
+        
     def step(self):
         if self.paused:
             return

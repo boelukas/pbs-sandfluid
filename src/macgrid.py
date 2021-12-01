@@ -298,6 +298,27 @@ class MacGrid:
     def advect_particles(self, dt: ti.f32):
         for i, j, k in self.particle_pos:
             self.particle_pos[i, j, k] += dt * self.particle_v[i, j, k]
+
+    # move particles with midpoint euler from grid velocity
+    @ti.kernel
+    def advect_particles_midpoint(self, dt: ti.f32):
+        for i, j, k in self.particle_pos:
+            start_pos = self.particle_pos[i, j, k]
+            midpos = start_pos + self.vel_interp(start_pos, self.v_x, self.v_y, self.v_z) * (dt * 0.5)
+            step = self.vel_interp(midpos, self.v_x, self.v_y, self.v_z) * dt
+            self.particle_pos[i, j, k] += step
+            """
+            if self.particle_pos[i, j, k].x == 0:
+                print('pos = ', start_pos)
+                ti.sync()
+            """
+
+    @ti.func
+    def vel_interp(self, pos, vel_x, vel_y, vel_z):
+        _ux = self.sample(vel_x, pos.x, pos.y, pos.z, 0.0, 0.5, 0.5, self.grid_size + 1, self.grid_size, self.grid_size)
+        _uy = self.sample(vel_y, pos.x, pos.y, pos.z, 0.5, 0.0, 0.5, self.grid_size, self.grid_size + 1, self.grid_size)
+        _uz = self.sample(vel_z, pos.x, pos.y, pos.z, 0.5, 0.5, 0.0, self.grid_size, self.grid_size, self.grid_size + 1)
+        return ti.Vector([_ux, _uy, _uz])
     
     def show_v_y(self):
         vely_numpy = self.v_y.to_numpy()
