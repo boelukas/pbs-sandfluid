@@ -106,20 +106,20 @@ def main():
     vis.add_geometry(coordinate_frame)  # coordinate frame
 
     points = (
-        [[i * sim.scale, 0, 0] for i in range(sim.grid_size)]
+        [[i * sim.scale, 0, 0] for i in range(sim.grid_size + 1)]
         + [
-            [i * sim.scale, 0, (sim.grid_size - 1) * sim.scale]
-            for i in range(sim.grid_size)
+            [i * sim.scale, 0, (sim.grid_size) * sim.scale]
+            for i in range(sim.grid_size + 1)
         ]
-        + [[0, 0, i * sim.scale] for i in range(sim.grid_size)]
+        + [[0, 0, i * sim.scale] for i in range(sim.grid_size + 1)]
         + [
-            [(sim.grid_size - 1) * sim.scale, 0, i * sim.scale]
-            for i in range(sim.grid_size)
+            [(sim.grid_size) * sim.scale, 0, i * sim.scale]
+            for i in range(sim.grid_size + 1)
         ]
     )
-    lines = [[i, i + sim.grid_size] for i in range(sim.grid_size)] + [
-        [i + 2 * sim.grid_size, i + 2 * sim.grid_size + sim.grid_size]
-        for i in range(sim.grid_size)
+    lines = [[i, i + (sim.grid_size + 1)] for i in range(sim.grid_size + 1)] + [
+        [i + 2 * (sim.grid_size + 1), i + 2 * (sim.grid_size + 1) + (sim.grid_size + 1)]
+        for i in range(sim.grid_size + 1)
     ]
     colors = [[0.7, 0.7, 0.7] for i in range(len(lines))]
     ground_plane = o3d.geometry.LineSet(
@@ -133,9 +133,9 @@ def main():
         min_bound=np.array([0, 0, 0]),
         max_bound=np.array(
             [
-                (sim.grid_size - 1) * sim.scale,
-                (sim.grid_size - 1) * sim.scale,
-                (sim.grid_size - 1) * sim.scale,
+                (sim.grid_size) * sim.scale,
+                (sim.grid_size) * sim.scale,
+                (sim.grid_size) * sim.scale,
             ]
         ),
     )
