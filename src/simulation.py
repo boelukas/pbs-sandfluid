@@ -12,6 +12,7 @@ from particle_visualization import ParticleVisualization
 # ti.init(debug=True, arch=ti.cpu)
 ti.init(arch=ti.gpu)
 
+
 @ti.data_oriented
 class Simulation(object):
     def __init__(self):
@@ -24,7 +25,9 @@ class Simulation(object):
         self.scale = 1.0
         self.mac_grid = sMACGrid(resolution=self.grid_size)
         self.alternative_mac_grid = MacGrid(self.grid_size)
-        self.particles_vis = ParticleVisualization(self.alternative_mac_grid, self.scale)
+        self.particles_vis = ParticleVisualization(
+            self.alternative_mac_grid, self.scale
+        )
         self.pressure_solver = PressureSolver(self.mac_grid)
         self.force_solver = ForceSolver(self.alternative_mac_grid)
 
@@ -42,20 +45,20 @@ class Simulation(object):
         self.alternative_mac_grid.particles_to_grid()
         # print(self.mac_grid.velY_grid)
 
-        # Adds gravity to the fluid 
+        # Adds gravity to the fluid
         # -> velocity changed
         self.force_solver.compute_forces()
         self.force_solver.apply_forces(dt)
         # print(self.mac_grid.velY_grid)
 
-        # Ensure the fluid stays incompressible: 
+        # Ensure the fluid stays incompressible:
         # Add enough pressure to the fluid to make the velocity field have divergence 0
         # -> velocity changed
         # self.pressure_solver.compute_pressure(dt)
         # self.pressure_solver.project(dt)
 
         # Apply boundary conditions so that particles do not disappear out of the domain
-        self.alternative_mac_grid.neumann_boundary_conditions()
+        # self.alternative_mac_grid.neumann_boundary_conditions()
 
         # Bring the new velocity to the particles
         # self.mac_grid.grid_to_particles(self.particles)
@@ -63,23 +66,21 @@ class Simulation(object):
 
         # TODO: Replace with RK2 step
         # Update the particle position with the new velocity by stepping in the velocity direction
-        
-        # self.alternative_mac_grid.advect_particles_midpoint(dt)
-        self.alternative_mac_grid.advect_particles(dt)
+
+        self.alternative_mac_grid.advect_particles_midpoint(dt)
+        # self.alternative_mac_grid.advect_particles(dt)
 
         # Re-Mark the cells after advection step into SOLID, SAND or AIR
-        self.alternative_mac_grid.update_markers()
-        
+        self.alternative_mac_grid.update_cell_types()
+
     def step(self):
         if self.paused:
             return
         self.t += self.dt
-        self.advance(
-            self.dt,
-            self.t
-        )
+        self.advance(self.dt, self.t)
         self.particles_vis.update_particles()
         # self.alternative_mac_grid.show_divergence()
+
 
 def main():
     sim = Simulation()
@@ -105,13 +106,21 @@ def main():
     vis.add_geometry(coordinate_frame)  # coordinate frame
 
     points = (
-        [[i*sim.scale, 0, 0] for i in range(sim.grid_size)]
-        + [[i*sim.scale, 0, (sim.grid_size- 1)*sim.scale] for i in range(sim.grid_size)]
-        + [[0, 0, i*sim.scale] for i in range(sim.grid_size)]
-        + [[(sim.grid_size - 1)*sim.scale, 0, i*sim.scale] for i in range(sim.grid_size)]
+        [[i * sim.scale, 0, 0] for i in range(sim.grid_size)]
+        + [
+            [i * sim.scale, 0, (sim.grid_size - 1) * sim.scale]
+            for i in range(sim.grid_size)
+        ]
+        + [[0, 0, i * sim.scale] for i in range(sim.grid_size)]
+        + [
+            [(sim.grid_size - 1) * sim.scale, 0, i * sim.scale]
+            for i in range(sim.grid_size)
+        ]
     )
-    lines = [[i, i + sim.grid_size]
-             for i in range(sim.grid_size)] + [[i + 2 *sim.grid_size, i + 2 *sim.grid_size + sim.grid_size] for i in range(sim.grid_size)]
+    lines = [[i, i + sim.grid_size] for i in range(sim.grid_size)] + [
+        [i + 2 * sim.grid_size, i + 2 * sim.grid_size + sim.grid_size]
+        for i in range(sim.grid_size)
+    ]
     colors = [[0.7, 0.7, 0.7] for i in range(len(lines))]
     ground_plane = o3d.geometry.LineSet(
         points=o3d.utility.Vector3dVector(points),
@@ -121,14 +130,21 @@ def main():
     vis.add_geometry(ground_plane, True)  # ground plane
 
     aabb = o3d.geometry.AxisAlignedBoundingBox(
-        min_bound=np.array([0, 0, 0]), max_bound=np.array([(sim.grid_size-1) *sim.scale, (sim.grid_size-1)*sim.scale, (sim.grid_size-1) *sim.scale])
+        min_bound=np.array([0, 0, 0]),
+        max_bound=np.array(
+            [
+                (sim.grid_size - 1) * sim.scale,
+                (sim.grid_size - 1) * sim.scale,
+                (sim.grid_size - 1) * sim.scale,
+            ]
+        ),
     )
     aabb.color = [0.7, 0.7, 0.7]
     vis.add_geometry(aabb)  # bounding box
 
     vis.add_geometry(sim.particles_vis.point_cloud)
 
-    if(sim.draw_convex_hull):
+    if sim.draw_convex_hull:
         convex_hull = sim.particles_vis.point_cloud.compute_convex_hull()[0]
         convex_hull.orient_triangles()
         vis.add_geometry(convex_hull)
@@ -137,7 +153,7 @@ def main():
         sim.step()
 
         vis.update_geometry(sim.particles_vis.point_cloud)
-        if(sim.draw_convex_hull):
+        if sim.draw_convex_hull:
             convex_hull = sim.particles_vis.point_cloud.compute_convex_hull()[0]
             convex_hull.orient_triangles()
             vis.update_geometry(convex_hull)
@@ -145,6 +161,7 @@ def main():
         if not vis.poll_events():
             break
         vis.update_renderer()
+
 
 if __name__ == "__main__":
     main()
