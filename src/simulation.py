@@ -36,49 +36,68 @@ class Simulation(object):
         self.t = 0.0
 
     def advance(self, dt: ti.f32, t: ti.f32):
-        # Compute mac_grid.VelX_grid, mac_grid.VelY_grid, mac_grid.VelZ_grid as
-        # self.mac_grid.splat_velocity(self.particles)
+        # # Compute mac_grid.VelX_grid, mac_grid.VelY_grid, mac_grid.VelZ_grid as
+        # # self.mac_grid.splat_velocity(self.particles)
+        # self.alternative_mac_grid.v_x.fill(0.0)
+        # self.alternative_mac_grid.v_y.fill(0.0)
+        # self.alternative_mac_grid.v_z.fill(0.0)
+
+        # self.alternative_mac_grid.particles_to_grid()
+        # # print(self.mac_grid.velY_grid)
+
+        # # Adds gravity to the fluid
+        # # -> velocity changed
+        # self.force_solver.compute_forces()
+        # self.force_solver.apply_forces(dt)
+        # # print(self.mac_grid.velY_grid)
+
+        # # Ensure the fluid stays incompressible:
+        # # Add enough pressure to the fluid to make the velocity field have divergence 0
+        # # -> velocity changed
+        # self.pressure_solver.compute_pressure(dt)
+        # # print(
+        # #     np.min(self.alternative_mac_grid.pressure.to_numpy().transpose(1, 0, 2)),
+        # #     np.max(self.alternative_mac_grid.pressure.to_numpy().transpose(1, 0, 2)),
+        # # )
+        # self.pressure_solver.project(dt)
+        # # self.alternative_mac_grid.show_divergence()
+        # # self.alternative_mac_grid.show_pressure()
+
+        # # Apply boundary conditions so that particles do not disappear out of the domain
+        # self.alternative_mac_grid.neumann_boundary_conditions()
+
+        # # Bring the new velocity to the particles
+        # # self.mac_grid.grid_to_particles(self.particles)
+        # self.alternative_mac_grid.grid_to_particles()
+
+        # # TODO: Replace with RK2 step
+        # # Update the particle position with the new velocity by stepping in the velocity direction
+
+        # self.alternative_mac_grid.advect_particles_midpoint(dt)
+        # # self.alternative_mac_grid.advect_particles(dt)
+
+        # # Re-Mark the cells after advection step into SOLID, SAND or AIR
+        # self.alternative_mac_grid.update_cell_types()
+        # # self.alternative_mac_grid.print_particles()
+
+        ## FLIP
+        self.force_solver.compute_forces()
+        self.force_solver.apply_forces(dt)
+        self.pressure_solver.compute_pressure(dt)
+        self.pressure_solver.project(dt)
+        self.alternative_mac_grid.neumann_boundary_conditions()
+        self.alternative_mac_grid.update_from_grid()
+        self.alternative_mac_grid.advect_particles_midpoint(dt)
+        self.alternative_mac_grid.update_cell_types()
+
         self.alternative_mac_grid.v_x.fill(0.0)
         self.alternative_mac_grid.v_y.fill(0.0)
         self.alternative_mac_grid.v_z.fill(0.0)
+        self.alternative_mac_grid.splat_x_weights.fill(0.0)
+        self.alternative_mac_grid.splat_y_weights.fill(0.0)
+        self.alternative_mac_grid.splat_z_weights.fill(0.0)
 
         self.alternative_mac_grid.particles_to_grid()
-        # print(self.mac_grid.velY_grid)
-
-        # Adds gravity to the fluid
-        # -> velocity changed
-        self.force_solver.compute_forces()
-        self.force_solver.apply_forces(dt)
-        # print(self.mac_grid.velY_grid)
-
-        # Ensure the fluid stays incompressible:
-        # Add enough pressure to the fluid to make the velocity field have divergence 0
-        # -> velocity changed
-        self.pressure_solver.compute_pressure(dt)
-        # print(
-        #     np.min(self.alternative_mac_grid.pressure.to_numpy().transpose(1, 0, 2)),
-        #     np.max(self.alternative_mac_grid.pressure.to_numpy().transpose(1, 0, 2)),
-        # )
-        self.pressure_solver.project(dt)
-        # self.alternative_mac_grid.show_divergence()
-        # self.alternative_mac_grid.show_pressure()
-
-        # Apply boundary conditions so that particles do not disappear out of the domain
-        self.alternative_mac_grid.neumann_boundary_conditions()
-
-        # Bring the new velocity to the particles
-        # self.mac_grid.grid_to_particles(self.particles)
-        self.alternative_mac_grid.grid_to_particles()
-
-        # TODO: Replace with RK2 step
-        # Update the particle position with the new velocity by stepping in the velocity direction
-
-        self.alternative_mac_grid.advect_particles_midpoint(dt)
-        # self.alternative_mac_grid.advect_particles(dt)
-
-        # Re-Mark the cells after advection step into SOLID, SAND or AIR
-        self.alternative_mac_grid.update_cell_types()
-        # self.alternative_mac_grid.print_particles()
 
     def step(self):
         if self.paused:

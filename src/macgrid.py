@@ -31,6 +31,7 @@ class MacGrid:
     def __init__(self, grid_size: int) -> None:
         # grid parameters
         self.grid_size = grid_size
+        self.flip_viscosity = 1.0
 
         # Cell centered grids
         self.cell_type = ti.field(
@@ -51,6 +52,16 @@ class MacGrid:
             ti.f32, shape=(self.grid_size, self.grid_size + 1, self.grid_size)
         )
         self.v_z = ti.field(
+            ti.f32, shape=(self.grid_size, self.grid_size, self.grid_size + 1)
+        )
+
+        self.v_x_saved = ti.field(
+            ti.f32, shape=(self.grid_size + 1, self.grid_size, self.grid_size)
+        )
+        self.v_y_saved = ti.field(
+            ti.f32, shape=(self.grid_size, self.grid_size + 1, self.grid_size)
+        )
+        self.v_z_saved = ti.field(
             ti.f32, shape=(self.grid_size, self.grid_size, self.grid_size + 1)
         )
 
@@ -174,9 +185,7 @@ class MacGrid:
     def print_particles(self):
         for i, j, k in self.particle_pos:
             if self.particle_active[i, j, k] == 1:
-                print("p_", i,"_",j,"_", k,"_: (", self.particle_pos[i, j, k], ")")
-
-
+                print("p_", i, "_", j, "_", k, "_: (", self.particle_pos[i, j, k], ")")
 
     # Initializes the particles to 8 particles per grid cell.
     # The positions are for grid cell i: i + 0.25 + rand and i + 0.75 + rand
@@ -659,6 +668,39 @@ class MacGrid:
         # print(np.unravel_index(div_numpy.argmax(), div_numpy.shape))
         # print(np.max(div_numpy))
         plt.show()
+
+    # Taken from pic_flip
+    @ti.kernel
+    def update_from_grid(self):
+        for i, j, k in self.v_x:
+            self.v_x_saved[i, j, k] = self.v_x[i, j, k] - self.v_x_saved[i, j, k]
+
+        for i, j, k in self.v_y:
+            self.v_y_saved[i, j, k] = self.v_y[i, j, k] - self.v_y_saved[i, j, k]
+
+        for i, j, k in self.v_z:
+            self.v_z_saved[i, j, k] = self.v_z[i, j, k] - self.v_z_saved[i, j, k]
+
+        for m, n, o in self.particle_pos:
+            if 1 == self.particle_active[m, n, o]:
+                gvel = self.velocity_interpolation(
+                    self.particle_pos[m, n, o], self.v_x, self.v_y, self.v_z
+                )
+                dvel = self.velocity_interpolation(
+                    self.particle_pos[m, n, o],
+                    self.v_x_saved,
+                    self.v_y_saved,
+                    self.v_z_saved,
+                )
+                self.particle_v[m, n, o] = self.flip_viscosity * gvel + (
+                    1.0 - self.flip_viscosity
+                ) * (self.particle_v[m, n, o] + dvel)
+
+    # Taken from pic_flip
+    def save_velocities(self):
+        self.v_x_saved.copy_from(self.v_x)
+        self.v_y_saved.copy_from(self.v_y)
+        self.v_z_saved.copy_from(self.v_z)
 
 
 class sMACGrid:
