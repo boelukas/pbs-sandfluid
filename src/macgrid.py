@@ -150,7 +150,7 @@ class MacGrid:
                 or k == self.grid_size - 1
             ):
                 self.cell_type[i, j, k] = CellType.SOLID.value
-            elif 1 <= i <= 2 and 2 <= j <= 3 and 1 <= k <= 2:
+            elif 4 <= i <= 5 and 4 <= j <= 5 and 4 <= k <= 5:
                 self.cell_type[i, j, k] = CellType.SAND.value
             else:
                 self.cell_type[i, j, k] = CellType.AIR.value
@@ -169,6 +169,14 @@ class MacGrid:
                 or k == self.grid_size - 1
             ):
                 self.cell_type[i, j, k] = CellType.SOLID.value
+
+    @ti.kernel
+    def print_particles(self):
+        for i, j, k in self.particle_pos:
+            if self.particle_active[i, j, k] == 1:
+                print("p_", i,"_",j,"_", k,"_: (", self.particle_pos[i, j, k], ")")
+
+
 
     # Initializes the particles to 8 particles per grid cell.
     # The positions are for grid cell i: i + 0.25 + rand and i + 0.75 + rand
@@ -260,7 +268,7 @@ class MacGrid:
 
     @ti.kernel
     def neumann_boundary_conditions(self):
-        for i, j, k in ti.ndrange(*self.cell_type.shape):
+        for i, j, k in self.cell_type:
             if self.cell_type[i, j, k] == CellType.SOLID.value:
                 self.v_x[i, j, k] = 0.0
                 self.v_x[i + 1, j, k] = 0.0

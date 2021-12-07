@@ -16,9 +16,9 @@ ti.init(arch=ti.gpu)
 @ti.data_oriented
 class Simulation(object):
     def __init__(self):
-        self.dt = 1e-3
+        self.dt = 1e-2
         self.t = 0.0
-        self.grid_size = 5
+        self.grid_size = 10
         self.dx = 1.0
         self.paused = True
         self.draw_convex_hull = False
@@ -28,7 +28,7 @@ class Simulation(object):
         self.particles_vis = ParticleVisualization(
             self.alternative_mac_grid, self.scale
         )
-        self.pressure_solver = PressureSolver(self.mac_grid)
+        self.pressure_solver = PressureSolver(self.alternative_mac_grid)
         self.force_solver = ForceSolver(self.alternative_mac_grid)
 
     def init(self):
@@ -54,11 +54,17 @@ class Simulation(object):
         # Ensure the fluid stays incompressible:
         # Add enough pressure to the fluid to make the velocity field have divergence 0
         # -> velocity changed
-        # self.pressure_solver.compute_pressure(dt)
-        # self.pressure_solver.project(dt)
+        self.pressure_solver.compute_pressure(dt)
+        # print(
+        #     np.min(self.alternative_mac_grid.pressure.to_numpy().transpose(1, 0, 2)),
+        #     np.max(self.alternative_mac_grid.pressure.to_numpy().transpose(1, 0, 2)),
+        # )
+        self.pressure_solver.project(dt)
+        # self.alternative_mac_grid.show_divergence()
+        # self.alternative_mac_grid.show_pressure()
 
         # Apply boundary conditions so that particles do not disappear out of the domain
-        # self.alternative_mac_grid.neumann_boundary_conditions()
+        self.alternative_mac_grid.neumann_boundary_conditions()
 
         # Bring the new velocity to the particles
         # self.mac_grid.grid_to_particles(self.particles)
@@ -72,6 +78,7 @@ class Simulation(object):
 
         # Re-Mark the cells after advection step into SOLID, SAND or AIR
         self.alternative_mac_grid.update_cell_types()
+        # self.alternative_mac_grid.print_particles()
 
     def step(self):
         if self.paused:
