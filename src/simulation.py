@@ -25,6 +25,9 @@ class Simulation(object):
         self.dx = 1.0
         self.paused = True
         self.draw_convex_hull = False
+
+        # Set this flag to true to export images for every time step
+        self.export_images = True
         self.scale = 1.0
         self.mac_grid = sMACGrid(resolution=self.grid_size)
         self.alternative_mac_grid = MacGrid(self.grid_size)
@@ -113,31 +116,34 @@ def main():
     # setup gui
     vis = o3d.visualization.VisualizerWithKeyCallback()
     vis.create_window()
-    time = strftime("%Y-%m-%d_%H_%M_%S", gmtime())
-    picture_dir = "./sim_" + time
-    Path(picture_dir).mkdir(parents=True, exist_ok=True)
-    with open(picture_dir + "/sim_settings", "w") as f:
-        f.write("Simulation Settings:\n")
-        f.write("Grid Size: {}\n".format(sim.grid_size))
-        f.write("dt: {}\n".format(sim.dt))
-        f.write(
-            "Particle (x, y, z) range: {}\n".format(
-                sim.alternative_mac_grid.initial_sand_cells
+    if sim.export_images:
+        time = strftime("%Y-%m-%d_%H_%M_%S", gmtime())
+        picture_dir = "./sim_" + time
+        Path(picture_dir).mkdir(parents=True, exist_ok=True)
+        with open(picture_dir + "/sim_settings", "w") as f:
+            f.write("Simulation Settings:\n")
+            f.write("Grid Size: {}\n".format(sim.grid_size))
+            f.write("dt: {}\n".format(sim.dt))
+            f.write(
+                "Particle (x, y, z) range: {}\n".format(
+                    sim.alternative_mac_grid.initial_sand_cells
+                )
             )
-        )
-        f.write("Pressure solver: {}\n".format(sim.pressure_solver.name))
-        f.write("Pressure solver density: {}\n".format(sim.pressure_solver.density))
-        f.write(
-            "Pressure solver gauss seidel min accuracy: {}\n".format(
-                sim.pressure_solver.gaus_seidel_min_accuracy
+            f.write("Pressure solver: {}\n".format(sim.pressure_solver.name))
+            f.write("Pressure solver density: {}\n".format(sim.pressure_solver.density))
+            f.write(
+                "Pressure solver gauss seidel min accuracy: {}\n".format(
+                    sim.pressure_solver.gaus_seidel_min_accuracy
+                )
             )
-        )
-        f.write(
-            "Pressure solver gauss seidel max iterations: {}\n".format(
-                sim.pressure_solver.gaus_seidel_max_iterations
+            f.write(
+                "Pressure solver gauss seidel max iterations: {}\n".format(
+                    sim.pressure_solver.gaus_seidel_max_iterations
+                )
             )
-        )
-        f.write("Flip viscosity: {}\n".format(sim.alternative_mac_grid.flip_viscosity))
+            f.write(
+                "Flip viscosity: {}\n".format(sim.alternative_mac_grid.flip_viscosity)
+            )
 
     def init(vis):
         print("reset simulation")
@@ -211,7 +217,7 @@ def main():
         if not vis.poll_events():
             break
         vis.update_renderer()
-        if not sim.paused:
+        if not sim.paused and sim.export_images:
             frame = picture_dir + "/frame_" + str(frame_idx).zfill(5) + ".png"
             vis.capture_screen_image(frame, True)
             frame_idx += 1
