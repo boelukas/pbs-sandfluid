@@ -33,6 +33,9 @@ class MacGrid:
         self.grid_size = grid_size
         self.flip_viscosity = 1.0
 
+        # All cells in the x, y, z range will be marked as sand
+        self.initial_sand_cells = ((20, 50), (1, 50), (20, 50))
+
         # Cell centered grids
         self.cell_type = ti.field(
             ti.f32, shape=(self.grid_size, self.grid_size, self.grid_size)
@@ -161,7 +164,11 @@ class MacGrid:
                 or k == self.grid_size - 1
             ):
                 self.cell_type[i, j, k] = CellType.SOLID.value
-            elif 2 <= i <= 10 and 4 <= j <= 10 and 4 <= k <= 10:
+            elif (
+                self.initial_sand_cells[0][0] <= i <= self.initial_sand_cells[0][1]
+                and self.initial_sand_cells[1][0] <= j <= self.initial_sand_cells[1][1]
+                and self.initial_sand_cells[2][0] <= k <= self.initial_sand_cells[2][1]
+            ):
                 self.cell_type[i, j, k] = CellType.SAND.value
             else:
                 self.cell_type[i, j, k] = CellType.AIR.value

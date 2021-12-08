@@ -5,8 +5,11 @@ from macgrid import sMACGrid
 from macgrid import MacGrid
 from macgrid import Particle
 from pressure_solver import PressureSolver
+from reference_pressure_solver import ReferencePressureSolver
 from force_solver import ForceSolver
 from particle_visualization import ParticleVisualization
+from pathlib import Path
+from time import gmtime, strftime
 
 # For debugging
 # ti.init(debug=True, arch=ti.cpu)
@@ -18,7 +21,7 @@ class Simulation(object):
     def __init__(self):
         self.dt = 1e-2
         self.t = 0.0
-        self.grid_size = 15
+        self.grid_size = 64
         self.dx = 1.0
         self.paused = True
         self.draw_convex_hull = False
@@ -110,6 +113,31 @@ def main():
     # setup gui
     vis = o3d.visualization.VisualizerWithKeyCallback()
     vis.create_window()
+    time = strftime("%Y-%m-%d_%H_%M_%S", gmtime())
+    picture_dir = "./sim_" + time
+    Path(picture_dir).mkdir(parents=True, exist_ok=True)
+    with open(picture_dir + "/sim_settings", "w") as f:
+        f.write("Simulation Settings:\n")
+        f.write("Grid Size: {}\n".format(sim.grid_size))
+        f.write("dt: {}\n".format(sim.dt))
+        f.write(
+            "Particle (x, y, z) range: {}\n".format(
+                sim.alternative_mac_grid.initial_sand_cells
+            )
+        )
+        f.write("Pressure solver: {}\n".format(sim.pressure_solver.name))
+        f.write("Pressure solver density: {}\n".format(sim.pressure_solver.density))
+        f.write(
+            "Pressure solver gauss seidel min accuracy: {}\n".format(
+                sim.pressure_solver.gaus_seidel_min_accuracy
+            )
+        )
+        f.write(
+            "Pressure solver gauss seidel max iterations: {}\n".format(
+                sim.pressure_solver.gaus_seidel_max_iterations
+            )
+        )
+        f.write("Flip viscosity: {}\n".format(sim.alternative_mac_grid.flip_viscosity))
 
     def init(vis):
         print("reset simulation")
@@ -170,7 +198,7 @@ def main():
         convex_hull = sim.particles_vis.point_cloud.compute_convex_hull()[0]
         convex_hull.orient_triangles()
         vis.add_geometry(convex_hull)
-
+    frame_idx = 0
     while True:
         sim.step()
 
@@ -183,6 +211,10 @@ def main():
         if not vis.poll_events():
             break
         vis.update_renderer()
+        if not sim.paused:
+            frame = picture_dir + "/frame_" + str(frame_idx).zfill(5) + ".png"
+            vis.capture_screen_image(frame, True)
+            frame_idx += 1
 
 
 if __name__ == "__main__":
