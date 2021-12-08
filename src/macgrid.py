@@ -560,9 +560,9 @@ class MacGrid:
             if self.splat_y_weights[i, j, k] > 0.0:
                 self.v_y[i, j, k] /= self.splat_y_weights[i, j, k]
 
-        for i, j, k in self.splat_y_weights:
-            if self.splat_y_weights[i, j, k] > 0.0:
-                self.v_z[i, j, k] /= self.splat_y_weights[i, j, k]
+        for i, j, k in self.splat_z_weights:
+            if self.splat_z_weights[i, j, k] > 0.0:
+                self.v_z[i, j, k] /= self.splat_z_weights[i, j, k]
 
     # Explicite euler step to advect particles
     @ti.kernel
