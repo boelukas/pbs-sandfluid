@@ -97,7 +97,7 @@ class MacGrid:
             shape=(self.grid_size * 2, self.grid_size * 2, self.grid_size * 2),
         )
         self.particle_active = ti.field(
-            ti.f32, shape=(self.grid_size * 2, self.grid_size * 2, self.grid_size * 2)
+            ti.i32, shape=(self.grid_size * 2, self.grid_size * 2, self.grid_size * 2)
         )
 
         # Initialize grids and particles
@@ -161,7 +161,7 @@ class MacGrid:
                 or k == self.grid_size - 1
             ):
                 self.cell_type[i, j, k] = CellType.SOLID.value
-            elif 4 <= i <= 5 and 4 <= j <= 5 and 4 <= k <= 5:
+            elif 2 <= i <= 10 and 4 <= j <= 10 and 4 <= k <= 10:
                 self.cell_type[i, j, k] = CellType.SAND.value
             else:
                 self.cell_type[i, j, k] = CellType.AIR.value
@@ -540,6 +540,9 @@ class MacGrid:
     # that were applied to it.
     @ti.kernel
     def particles_to_grid(self):
+        self.clear_field(self.v_x)
+        self.clear_field(self.v_y)
+        self.clear_field(self.v_z)
         self.clear_field(self.splat_x_weights)
         self.clear_field(self.splat_y_weights)
         self.clear_field(self.splat_z_weights)

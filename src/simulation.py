@@ -18,7 +18,7 @@ class Simulation(object):
     def __init__(self):
         self.dt = 1e-2
         self.t = 0.0
-        self.grid_size = 10
+        self.grid_size = 15
         self.dx = 1.0
         self.paused = True
         self.draw_convex_hull = False
@@ -90,14 +90,8 @@ class Simulation(object):
         self.alternative_mac_grid.advect_particles_midpoint(dt)
         self.alternative_mac_grid.update_cell_types()
 
-        self.alternative_mac_grid.v_x.fill(0.0)
-        self.alternative_mac_grid.v_y.fill(0.0)
-        self.alternative_mac_grid.v_z.fill(0.0)
-        self.alternative_mac_grid.splat_x_weights.fill(0.0)
-        self.alternative_mac_grid.splat_y_weights.fill(0.0)
-        self.alternative_mac_grid.splat_z_weights.fill(0.0)
-
         self.alternative_mac_grid.particles_to_grid()
+        self.alternative_mac_grid.save_velocities()
 
     def step(self):
         if self.paused:
@@ -105,6 +99,8 @@ class Simulation(object):
         self.t += self.dt
         self.advance(self.dt, self.t)
         self.particles_vis.update_particles()
+        # self.alternative_mac_grid.show_pressure()
+
         # self.alternative_mac_grid.show_divergence()
 
 
