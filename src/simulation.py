@@ -23,14 +23,20 @@ class Simulation(object):
         self.grid_size = 64
         self.dx = 1.0
         self.paused = True
+
+        self.draw_alpha_surface = False
         self.draw_convex_hull = False
+        self.mesh = None
 
         # Set this flag to true to export images for every time step
         self.export_images = True
         self.scale = 1.0
         self.alternative_mac_grid = MacGrid(self.grid_size)
+
+        # Compute particle on the edges of the object for surface reconstruction
+        update_edge_particles = self.draw_alpha_surface or self.draw_convex_hull
         self.particles_vis = ParticleVisualization(
-            self.alternative_mac_grid, self.scale
+            self.alternative_mac_grid, self.scale, update_edge_particles
         )
         self.pressure_solver = PressureSolver(self.alternative_mac_grid)
         self.force_solver = ForceSolver(self.alternative_mac_grid)
@@ -74,7 +80,7 @@ class Simulation(object):
         # # self.mac_grid.grid_to_particles(self.particles)
         # self.alternative_mac_grid.grid_to_particles()
 
-        # # TODO: Replace with RK2 step
+        # Replace with RK2 step
         # # Update the particle position with the new velocity by stepping in the velocity direction
 
         # self.alternative_mac_grid.advect_particles_midpoint(dt)
@@ -196,21 +202,45 @@ def main():
     aabb.color = [0.7, 0.7, 0.7]
     vis.add_geometry(aabb)  # bounding box
 
-    vis.add_geometry(sim.particles_vis.point_cloud)
 
-    if sim.draw_convex_hull:
-        convex_hull = sim.particles_vis.point_cloud.compute_convex_hull()[0]
-        convex_hull.orient_triangles()
-        vis.add_geometry(convex_hull)
+    #pivot_radii = [8.0]
+    alpha = 8.0
+
+    if sim.draw_alpha_surface:
+        sim.mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(sim.particles_vis.point_cloud, alpha)
+        sim.mesh.orient_triangles()
+        vis.add_geometry(sim.mesh)
+    elif sim.draw_convex_hull:
+        temp_hull = sim.particles_vis.point_cloud.compute_convex_hull()[0]
+        temp_hull.orient_triangles()
+        sim.convex_hull = temp_hull
+        vis.add_geometry(sim.convex_hull)
+    else:
+        vis.add_geometry(sim.particles_vis.point_cloud_edge)
+
     frame_idx = 0
     while True:
         sim.step()
 
-        vis.update_geometry(sim.particles_vis.point_cloud)
-        if sim.draw_convex_hull:
-            convex_hull = sim.particles_vis.point_cloud.compute_convex_hull()[0]
-            convex_hull.orient_triangles()
-            vis.update_geometry(convex_hull)
+        if sim.draw_alpha_surface:
+            sim.particles_vis.point_cloud_edge.estimate_normals()
+            #temp_mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(sim.particles_vis.point_cloud_edge, o3d.utility.DoubleVector(pivot_radii))
+            #temp_mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(sim.particles_vis.point_cloud_edge, depth=20)
+            temp_mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(sim.particles_vis.point_cloud_edge, alpha)
+            temp_mesh.orient_triangles()
+            temp_mesh = temp_mesh.filter_smooth_simple()
+
+            vis.remove_geometry(sim.mesh, False)
+            sim.mesh = temp_mesh
+            vis.add_geometry(sim.mesh, False)    
+        elif sim.draw_convex_hull:
+            temp_hull = sim.particles_vis.point_cloud.compute_convex_hull()[0]
+            temp_hull.orient_triangles()
+            vis.remove_geometry(sim.mesh, False)
+            sim.mesh = temp_hull
+            vis.add_geometry(sim.mesh, False)
+        else:
+            vis.update_geometry(sim.particles_vis.point_cloud_edge)
 
         if not vis.poll_events():
             break

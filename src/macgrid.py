@@ -93,6 +93,12 @@ class MacGrid:
             ti.f32,
             shape=(self.grid_size * 2, self.grid_size * 2, self.grid_size * 2),
         )
+        # edge particles
+        self.particle_edge_pos = ti.Vector.field(
+            3,
+            ti.f32,
+            shape=(self.grid_size * 2, self.grid_size * 2, self.grid_size * 2),
+        )
         self.particle_v = ti.Vector.field(
             3,
             ti.f32,
@@ -579,6 +585,30 @@ class MacGrid:
         for i, j, k in self.particle_pos:
             if self.particle_active[i, j, k] == 1:
                 self.particle_pos[i, j, k] += dt * self.particle_v[i, j, k]
+
+    @ti.kernel
+    def update_particle_edge_pos(self):
+        for i, j, k in self.particle_pos:
+            grid_size = self.grid_size
+            p_pos = self.particle_pos[i, j, k]
+            # Get cell idx in which the particle currently resides
+            grid_i = self.clamp(int(p_pos[0]), 0, grid_size - 1)
+            grid_j = self.clamp(int(p_pos[1]), 0, grid_size - 1)
+            grid_k = self.clamp(int(p_pos[2]), 0, grid_size - 1)
+
+            # Check whether cell is solid (boundary)
+            if(
+                grid_i != 0 and grid_i != grid_size -1
+                and grid_j != 0 and grid_j != grid_size -1
+                and grid_k != 0 and grid_k != grid_size -1
+                and self.cell_type[grid_i + 1, grid_j, grid_k] == CellType.SAND.value
+                and self.cell_type[grid_i - 1, grid_j, grid_k] == CellType.SAND.value                
+                and self.cell_type[grid_i, grid_j + 1, grid_k] == CellType.SAND.value
+                and self.cell_type[grid_i, grid_j - 1, grid_k] == CellType.SAND.value
+                and self.cell_type[grid_i, grid_j, grid_k + 1] == CellType.SAND.value
+                and self.cell_type[grid_i, grid_j, grid_k - 1] == CellType.SAND.value
+            ):
+                self.particle_edge_pos[i,j,k] = [0.0, 0.0, 0.0]
 
     # move particles with midpoint euler from grid velocity
     @ti.kernel
