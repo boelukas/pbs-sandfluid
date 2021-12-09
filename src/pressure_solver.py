@@ -42,6 +42,8 @@ class PressureSolver(object):
             if x > 0 and (
                 self.mac_grid.cell_type[x, y, z] == CellType.SAND.value
                 or self.mac_grid.cell_type[x - 1, y, z] == CellType.SAND.value
+                or self.mac_grid.cell_type[x, y - 1, z] == CellType.SAND.value
+                or self.mac_grid.cell_type[x, y, z - 1] == CellType.SAND.value
             ):
                 self.mac_grid.v_x[x, y, z] -= (
                     (
@@ -56,6 +58,8 @@ class PressureSolver(object):
             if y > 0 and (
                 self.mac_grid.cell_type[x, y, z] == CellType.SAND.value
                 or self.mac_grid.cell_type[x, y - 1, z] == CellType.SAND.value
+                or self.mac_grid.cell_type[x - 1, y, z] == CellType.SAND.value
+                or self.mac_grid.cell_type[x, y, z - 1] == CellType.SAND.value
             ):
                 self.mac_grid.v_y[x, y, z] -= (
                     (
@@ -70,6 +74,8 @@ class PressureSolver(object):
             if z > 0 and (
                 self.mac_grid.cell_type[x, y, z] == CellType.SAND.value
                 or self.mac_grid.cell_type[x, y, z - 1] == CellType.SAND.value
+                or self.mac_grid.cell_type[x - 1, y, z] == CellType.SAND.value
+                or self.mac_grid.cell_type[x, y - 1, z] == CellType.SAND.value
             ):
                 self.mac_grid.v_z[x, y, z] -= (
                     (
@@ -103,6 +109,8 @@ class PressureSolver(object):
 
                             b = -self.mac_grid.divergence[x, y, z] / dt * self.rho
 
+                            #Original
+                            """
                             self.mac_grid.pressure[x, y, z] = (
                                 b
                                 + self.mac_grid.pressure[x - 1, y, z]
@@ -112,6 +120,43 @@ class PressureSolver(object):
                                 + self.mac_grid.pressure[x, y, z + 1]
                                 + self.mac_grid.pressure[x, y, z - 1]
                             ) / 6.0
+                            """
+
+                            #Improvement suggestion at the boundary (or near solid objects)
+                            non_solid_neighbors = 0
+                            #Check for non-solid cells in x-Direction
+                            if(x != 1 and x != res_x -1):
+                                non_solid_neighbors += 2
+                            elif(x == 1):
+                                non_solid_neighbors += 1
+                            else:
+                                non_solid_neighbors += 1
+                            
+                            #Check for non-solid cells in y-Direction
+                            if(y != 1 and y != res_y -1):
+                                non_solid_neighbors += 2
+                            elif(y == 1):
+                                non_solid_neighbors += 1
+                            else:
+                                non_solid_neighbors += 1
+                            
+                            #Check for non-solid cells in z-Direction
+                            if(z != 1 and z != res_z -1):
+                                non_solid_neighbors += 2
+                            elif(z == 1):
+                                non_solid_neighbors += 1
+                            else:
+                                non_solid_neighbors += 1     
+
+                            self.mac_grid.pressure[x, y, z] = (
+                                b
+                                + self.mac_grid.pressure[x - 1, y, z]
+                                + self.mac_grid.pressure[x + 1, y, z]
+                                + self.mac_grid.pressure[x, y - 1, z]
+                                + self.mac_grid.pressure[x, y + 1, z]
+                                + self.mac_grid.pressure[x, y, z + 1]
+                                + self.mac_grid.pressure[x, y, z - 1]
+                            ) / non_solid_neighbors
 
             for y in range(1, res_y - 1):
                 for x in range(1, res_x - 1):
@@ -121,8 +166,46 @@ class PressureSolver(object):
                             b = -self.mac_grid.divergence[x, y, z] / dt * self.rho
 
                             cell_residual = 0.0
+                            """
                             cell_residual = b - (
                                 6.0 * self.mac_grid.pressure[x, y, z]
+                                - self.mac_grid.pressure[x - 1, y, z]
+                                - self.mac_grid.pressure[x + 1, y, z]
+                                - self.mac_grid.pressure[x, y - 1, z]
+                                - self.mac_grid.pressure[x, y + 1, z]
+                                - self.mac_grid.pressure[x, y, z + 1]
+                                - self.mac_grid.pressure[x, y, z - 1]
+                            )
+                            """
+
+                            #Improvement suggestion at the boundary (or near solid objects)
+                            non_solid_neighbors = 0
+                            #Check for non-solid cells in x-Direction
+                            if(x != 1 and x != res_x -1):
+                                non_solid_neighbors += 2
+                            elif(x == 1):
+                                non_solid_neighbors += 1
+                            else:
+                                non_solid_neighbors += 1
+                            
+                            #Check for non-solid cells in y-Direction
+                            if(y != 1 and y != res_y -1):
+                                non_solid_neighbors += 2
+                            elif(y == 1):
+                                non_solid_neighbors += 1
+                            else:
+                                non_solid_neighbors += 1
+                            
+                            #Check for non-solid cells in z-Direction
+                            if(z != 1 and z != res_z -1):
+                                non_solid_neighbors += 2
+                            elif(z == 1):
+                                non_solid_neighbors += 1
+                            else:
+                                non_solid_neighbors += 1
+
+                            cell_residual = b - (
+                                non_solid_neighbors * self.mac_grid.pressure[x, y, z]
                                 - self.mac_grid.pressure[x - 1, y, z]
                                 - self.mac_grid.pressure[x + 1, y, z]
                                 - self.mac_grid.pressure[x, y - 1, z]

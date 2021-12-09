@@ -1,7 +1,6 @@
 import taichi as ti
 import open3d as o3d
 import numpy as np
-from macgrid import sMACGrid
 from macgrid import MacGrid
 from macgrid import Particle
 from pressure_solver import PressureSolver
@@ -29,7 +28,6 @@ class Simulation(object):
         # Set this flag to true to export images for every time step
         self.export_images = True
         self.scale = 1.0
-        self.mac_grid = sMACGrid(resolution=self.grid_size)
         self.alternative_mac_grid = MacGrid(self.grid_size)
         self.particles_vis = ParticleVisualization(
             self.alternative_mac_grid, self.scale

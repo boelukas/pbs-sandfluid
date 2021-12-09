@@ -1,4 +1,3 @@
-from types import CellType
 from typing import List, Tuple, Union
 from numpy.lib.function_base import diff
 import taichi as ti
