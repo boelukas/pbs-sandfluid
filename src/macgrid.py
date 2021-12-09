@@ -33,6 +33,9 @@ class MacGrid:
         self.grid_size = grid_size
         self.flip_viscosity = 1.0
 
+        # All cells in the x, y, z range will be marked as sand
+        self.initial_sand_cells = ((20, 50), (1, 50), (20, 50))
+
         # Cell centered grids
         self.cell_type = ti.field(
             ti.f32, shape=(self.grid_size, self.grid_size, self.grid_size)
@@ -97,7 +100,7 @@ class MacGrid:
             shape=(self.grid_size * 2, self.grid_size * 2, self.grid_size * 2),
         )
         self.particle_active = ti.field(
-            ti.f32, shape=(self.grid_size * 2, self.grid_size * 2, self.grid_size * 2)
+            ti.i32, shape=(self.grid_size * 2, self.grid_size * 2, self.grid_size * 2)
         )
 
         # Initialize grids and particles
@@ -161,7 +164,11 @@ class MacGrid:
                 or k == self.grid_size - 1
             ):
                 self.cell_type[i, j, k] = CellType.SOLID.value
-            elif 4 <= i <= 5 and 4 <= j <= 5 and 4 <= k <= 5:
+            elif (
+                self.initial_sand_cells[0][0] <= i <= self.initial_sand_cells[0][1]
+                and self.initial_sand_cells[1][0] <= j <= self.initial_sand_cells[1][1]
+                and self.initial_sand_cells[2][0] <= k <= self.initial_sand_cells[2][1]
+            ):
                 self.cell_type[i, j, k] = CellType.SAND.value
             else:
                 self.cell_type[i, j, k] = CellType.AIR.value
@@ -540,6 +547,9 @@ class MacGrid:
     # that were applied to it.
     @ti.kernel
     def particles_to_grid(self):
+        self.clear_field(self.v_x)
+        self.clear_field(self.v_y)
+        self.clear_field(self.v_z)
         self.clear_field(self.splat_x_weights)
         self.clear_field(self.splat_y_weights)
         self.clear_field(self.splat_z_weights)
@@ -560,9 +570,9 @@ class MacGrid:
             if self.splat_y_weights[i, j, k] > 0.0:
                 self.v_y[i, j, k] /= self.splat_y_weights[i, j, k]
 
-        for i, j, k in self.splat_y_weights:
-            if self.splat_y_weights[i, j, k] > 0.0:
-                self.v_z[i, j, k] /= self.splat_y_weights[i, j, k]
+        for i, j, k in self.splat_z_weights:
+            if self.splat_z_weights[i, j, k] > 0.0:
+                self.v_z[i, j, k] /= self.splat_z_weights[i, j, k]
 
     # Explicite euler step to advect particles
     @ti.kernel
