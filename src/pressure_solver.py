@@ -11,7 +11,7 @@ class PressureSolver(object):
         self.gaus_seidel_min_accuracy = 0.0001
         self.gaus_seidel_max_iterations = 10000
         self.rho = 1.0
-        self.density = 0.4
+        self.density = 1.0
 
     # Computes the divergence
     @ti.kernel
