@@ -109,7 +109,7 @@ class PressureSolver(object):
 
                             b = -self.mac_grid.divergence[x, y, z] / dt * self.rho
 
-                            #Original
+                            # Original
                             """
                             self.mac_grid.pressure[x, y, z] = (
                                 b
@@ -122,31 +122,31 @@ class PressureSolver(object):
                             ) / 6.0
                             """
 
-                            #Improvement suggestion at the boundary (or near solid objects)
+                            # Improvement suggestion at the boundary (or near solid objects)
                             non_solid_neighbors = 0
-                            #Check for non-solid cells in x-Direction
-                            if(x != 1 and x != res_x -1):
+                            # Check for non-solid cells in x-Direction
+                            if x != 1 and x != res_x - 1:
                                 non_solid_neighbors += 2
-                            elif(x == 1):
+                            elif x == 1:
                                 non_solid_neighbors += 1
                             else:
                                 non_solid_neighbors += 1
-                            
-                            #Check for non-solid cells in y-Direction
-                            if(y != 1 and y != res_y -1):
+
+                            # Check for non-solid cells in y-Direction
+                            if y != 1 and y != res_y - 1:
                                 non_solid_neighbors += 2
-                            elif(y == 1):
+                            elif y == 1:
                                 non_solid_neighbors += 1
                             else:
                                 non_solid_neighbors += 1
-                            
-                            #Check for non-solid cells in z-Direction
-                            if(z != 1 and z != res_z -1):
+
+                            # Check for non-solid cells in z-Direction
+                            if z != 1 and z != res_z - 1:
                                 non_solid_neighbors += 2
-                            elif(z == 1):
+                            elif z == 1:
                                 non_solid_neighbors += 1
                             else:
-                                non_solid_neighbors += 1     
+                                non_solid_neighbors += 1
 
                             self.mac_grid.pressure[x, y, z] = (
                                 b
@@ -178,28 +178,28 @@ class PressureSolver(object):
                             )
                             """
 
-                            #Improvement suggestion at the boundary (or near solid objects)
+                            # Improvement suggestion at the boundary (or near solid objects)
                             non_solid_neighbors = 0
-                            #Check for non-solid cells in x-Direction
-                            if(x != 1 and x != res_x -1):
+                            # Check for non-solid cells in x-Direction
+                            if x != 1 and x != res_x - 1:
                                 non_solid_neighbors += 2
-                            elif(x == 1):
+                            elif x == 1:
                                 non_solid_neighbors += 1
                             else:
                                 non_solid_neighbors += 1
-                            
-                            #Check for non-solid cells in y-Direction
-                            if(y != 1 and y != res_y -1):
+
+                            # Check for non-solid cells in y-Direction
+                            if y != 1 and y != res_y - 1:
                                 non_solid_neighbors += 2
-                            elif(y == 1):
+                            elif y == 1:
                                 non_solid_neighbors += 1
                             else:
                                 non_solid_neighbors += 1
-                            
-                            #Check for non-solid cells in z-Direction
-                            if(z != 1 and z != res_z -1):
+
+                            # Check for non-solid cells in z-Direction
+                            if z != 1 and z != res_z - 1:
                                 non_solid_neighbors += 2
-                            elif(z == 1):
+                            elif z == 1:
                                 non_solid_neighbors += 1
                             else:
                                 non_solid_neighbors += 1

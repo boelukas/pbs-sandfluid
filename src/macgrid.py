@@ -290,11 +290,13 @@ class MacGrid:
     @ti.kernel
     def neumann_boundary_conditions(self):
         for i, j, k in self.cell_type:
-            if self.cell_type[i, j, k] == CellType.SOLID.value:
+            if i == 0 or i == self.grid_size - 1:
                 self.v_x[i, j, k] = 0.0
                 self.v_x[i + 1, j, k] = 0.0
+            if j == 0 or j == self.grid_size - 1:
                 self.v_y[i, j, k] = 0.0
                 self.v_y[i, j + 1, k] = 0.0
+            if k == 0 or k == self.grid_size - 1:
                 self.v_z[i, j, k] = 0.0
                 self.v_z[i, j, k + 1] = 0.0
 
