@@ -204,7 +204,7 @@ def main():
 
 
     #pivot_radii = [8.0]
-    alpha = 8.0
+    alpha = 5.0
 
     if sim.draw_alpha_surface:
         sim.mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(sim.particles_vis.point_cloud, alpha)
@@ -216,7 +216,7 @@ def main():
         sim.convex_hull = temp_hull
         vis.add_geometry(sim.convex_hull)
     else:
-        vis.add_geometry(sim.particles_vis.point_cloud_edge)
+        vis.add_geometry(sim.particles_vis.point_cloud)
 
     frame_idx = 0
     while True:
@@ -228,7 +228,7 @@ def main():
             #temp_mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(sim.particles_vis.point_cloud_edge, depth=20)
             temp_mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(sim.particles_vis.point_cloud_edge, alpha)
             temp_mesh.orient_triangles()
-            temp_mesh = temp_mesh.filter_smooth_simple()
+            #temp_mesh = temp_mesh.filter_smooth_simple()
 
             vis.remove_geometry(sim.mesh, False)
             sim.mesh = temp_mesh
@@ -240,7 +240,7 @@ def main():
             sim.mesh = temp_hull
             vis.add_geometry(sim.mesh, False)
         else:
-            vis.update_geometry(sim.particles_vis.point_cloud_edge)
+            vis.update_geometry(sim.particles_vis.point_cloud)
 
         if not vis.poll_events():
             break
