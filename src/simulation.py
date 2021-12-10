@@ -10,6 +10,8 @@ from particle_visualization import ParticleVisualization
 from pathlib import Path
 from time import gmtime, strftime
 
+from sand_solver import SandSolver
+
 # For debugging
 # ti.init(debug=True, arch=ti.cpu)
 ti.init(arch=ti.gpu)
@@ -20,7 +22,7 @@ class Simulation(object):
     def __init__(self):
         self.dt = 1e-2
         self.t = 0.0
-        self.grid_size = 64
+        self.grid_size = 15
         self.dx = 1.0
         self.paused = True
 
@@ -29,7 +31,7 @@ class Simulation(object):
         self.mesh = None
 
         # Set this flag to true to export images for every time step
-        self.export_images = True
+        self.export_images = False
         self.scale = 1.0
         self.alternative_mac_grid = MacGrid(self.grid_size)
 
@@ -40,6 +42,7 @@ class Simulation(object):
         )
         self.pressure_solver = PressureSolver(self.alternative_mac_grid)
         self.force_solver = ForceSolver(self.alternative_mac_grid)
+        self.sand_solver = SandSolver(self.alternative_mac_grid)
 
     def init(self):
         self.alternative_mac_grid.reset_fields()
@@ -96,6 +99,10 @@ class Simulation(object):
         self.pressure_solver.compute_pressure(dt)
         self.pressure_solver.project(dt)
         self.alternative_mac_grid.neumann_boundary_conditions()
+
+        # TODO Fix sand solver
+        self.sand_solver.sand_steps(dt)
+        # print(self.alternative_mac_grid.frictional_stress)
         self.alternative_mac_grid.update_from_grid()
         self.alternative_mac_grid.advect_particles_midpoint(dt)
         self.alternative_mac_grid.update_cell_types()
@@ -109,7 +116,7 @@ class Simulation(object):
         self.t += self.dt
         self.advance(self.dt, self.t)
         self.particles_vis.update_particles()
-        # self.alternative_mac_grid.show_pressure()
+        # self.alternative_mac_grid.show_rigid_cells()
 
         # self.alternative_mac_grid.show_divergence()
 
@@ -202,12 +209,13 @@ def main():
     aabb.color = [0.7, 0.7, 0.7]
     vis.add_geometry(aabb)  # bounding box
 
-
-    #pivot_radii = [8.0]
+    # pivot_radii = [8.0]
     alpha = 5.0
 
     if sim.draw_alpha_surface:
-        sim.mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(sim.particles_vis.point_cloud, alpha)
+        sim.mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(
+            sim.particles_vis.point_cloud, alpha
+        )
         sim.mesh.orient_triangles()
         vis.add_geometry(sim.mesh)
     elif sim.draw_convex_hull:
@@ -224,15 +232,17 @@ def main():
 
         if sim.draw_alpha_surface:
             sim.particles_vis.point_cloud_edge.estimate_normals()
-            #temp_mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(sim.particles_vis.point_cloud_edge, o3d.utility.DoubleVector(pivot_radii))
-            #temp_mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(sim.particles_vis.point_cloud_edge, depth=20)
-            temp_mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(sim.particles_vis.point_cloud_edge, alpha)
+            # temp_mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(sim.particles_vis.point_cloud_edge, o3d.utility.DoubleVector(pivot_radii))
+            # temp_mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(sim.particles_vis.point_cloud_edge, depth=20)
+            temp_mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(
+                sim.particles_vis.point_cloud_edge, alpha
+            )
             temp_mesh.orient_triangles()
-            #temp_mesh = temp_mesh.filter_smooth_simple()
+            # temp_mesh = temp_mesh.filter_smooth_simple()
 
             vis.remove_geometry(sim.mesh, False)
             sim.mesh = temp_mesh
-            vis.add_geometry(sim.mesh, False)    
+            vis.add_geometry(sim.mesh, False)
         elif sim.draw_convex_hull:
             temp_hull = sim.particles_vis.point_cloud.compute_convex_hull()[0]
             temp_hull.orient_triangles()

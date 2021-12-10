@@ -30,10 +30,10 @@ class MacGrid:
     def __init__(self, grid_size: int) -> None:
         # grid parameters
         self.grid_size = grid_size
-        self.flip_viscosity = 1.0
+        self.flip_viscosity = 0.0
 
         # All cells in the x, y, z range will be marked as sand
-        self.initial_sand_cells = ((20, 50), (1, 50), (20, 50))
+        self.initial_sand_cells = ((1, 10), (2, 3), (6, 8))
 
         # Cell centered grids
         self.cell_type = ti.field(
@@ -44,6 +44,28 @@ class MacGrid:
         )
         self.divergence = ti.field(
             ti.f32, shape=(self.grid_size, self.grid_size, self.grid_size)
+        )
+
+        # Sand specific fields
+        # D
+        self.strain_rate = ti.Matrix.field(
+            3, 3, ti.f32, shape=(self.grid_size, self.grid_size, self.grid_size)
+        )
+        # sigma_f
+        self.frictional_stress = ti.Matrix.field(
+            3, 3, ti.f32, shape=(self.grid_size, self.grid_size, self.grid_size)
+        )
+        # sigma_f
+        self.frictional_stress_divergence = ti.field(
+            ti.f32, shape=(self.grid_size, self.grid_size, self.grid_size)
+        )
+        # sigma_rigid
+        self.rigid_stress = ti.Matrix.field(
+            3, 3, ti.f32, shape=(self.grid_size, self.grid_size, self.grid_size)
+        )
+        # Marks rigid sand cells
+        self.cell_rigid = ti.field(
+            ti.i32, shape=(self.grid_size, self.grid_size, self.grid_size)
         )
 
         # Edge centered grids
@@ -599,18 +621,21 @@ class MacGrid:
             grid_k = self.clamp(int(p_pos[2]), 0, grid_size - 1)
 
             # Check whether cell is solid (boundary)
-            if(
-                grid_i != 0 and grid_i != grid_size -1
-                and grid_j != 0 and grid_j != grid_size -1
-                and grid_k != 0 and grid_k != grid_size -1
+            if (
+                grid_i != 0
+                and grid_i != grid_size - 1
+                and grid_j != 0
+                and grid_j != grid_size - 1
+                and grid_k != 0
+                and grid_k != grid_size - 1
                 and self.cell_type[grid_i + 1, grid_j, grid_k] == CellType.SAND.value
-                and self.cell_type[grid_i - 1, grid_j, grid_k] == CellType.SAND.value                
+                and self.cell_type[grid_i - 1, grid_j, grid_k] == CellType.SAND.value
                 and self.cell_type[grid_i, grid_j + 1, grid_k] == CellType.SAND.value
                 and self.cell_type[grid_i, grid_j - 1, grid_k] == CellType.SAND.value
                 and self.cell_type[grid_i, grid_j, grid_k + 1] == CellType.SAND.value
                 and self.cell_type[grid_i, grid_j, grid_k - 1] == CellType.SAND.value
             ):
-                self.particle_edge_pos[i,j,k] = [0.0, 0.0, 0.0]
+                self.particle_edge_pos[i, j, k] = [0.0, 0.0, 0.0]
 
     # move particles with midpoint euler from grid velocity
     @ti.kernel
@@ -659,6 +684,33 @@ class MacGrid:
     # Plots the pressure. Upwards pointing arrows mean positive pressure
     def show_pressure(self):
         p_numpy = self.pressure.to_numpy()
+        resolution = min(p_numpy.shape)
+        fig = plt.figure()
+        ax = fig.gca(projection="3d")
+        ax.set_ylabel("z")
+        ax.set_zlabel("y")
+        ax.set_xlabel("x")
+        plt.xlim([0, resolution - 1])
+        plt.ylim([0, resolution - 1])
+        ax.set_zlim(0, resolution - 1)
+        x, y, z = np.meshgrid(
+            np.arange(0, resolution, 1),
+            np.arange(0, resolution, 1),
+            np.arange(0, resolution, 1),
+        )
+
+        u = np.zeros((resolution, resolution, resolution))
+        w = np.zeros((resolution, resolution, resolution))
+        v = p_numpy[:resolution, :resolution, :resolution]
+
+        ax.quiver(y, z, x, u, w, v, length=1, color="black")
+        # print(np.unravel_index(p_numpy.argmax(), p_numpy.shape))
+        # print(np.max(p_numpy))
+        plt.show()
+
+    # Plots the rigid cells
+    def show_rigid_cells(self):
+        p_numpy = self.cell_rigid.to_numpy()
         resolution = min(p_numpy.shape)
         fig = plt.figure()
         ax = fig.gca(projection="3d")
