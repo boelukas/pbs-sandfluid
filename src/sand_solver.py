@@ -10,7 +10,7 @@ class SandSolver(object):
         # Phi, between 30 to 45 deg in rad
         self.internal_friction_angle = 0.534
         # rho
-        self.density = 0.1
+        self.density = 1.0
         self.delta = 1.0
 
     def sand_steps(self, dt):
