@@ -1,17 +1,20 @@
 import taichi as ti
-import numpy as np
 from macgrid import MacGrid, CellType
 
 
 @ti.data_oriented
 class PressureSolver(object):
-    def __init__(self, mac_grid: MacGrid):
+    def __init__(
+        self,
+        mac_grid: MacGrid,
+        gaus_seidel_min_accuracy: float,
+        gaus_seidel_max_iterations: int,
+    ):
         self.name = "Custom solver"
         self.mac_grid = mac_grid
-        self.gaus_seidel_min_accuracy = 0.0001
-        self.gaus_seidel_max_iterations = 10000
+        self.gaus_seidel_min_accuracy = gaus_seidel_min_accuracy
+        self.gaus_seidel_max_iterations = gaus_seidel_max_iterations
         self.rho = 1.0
-        self.density = 1.0
 
     # Computes the divergence
     @ti.kernel
@@ -46,13 +49,9 @@ class PressureSolver(object):
                 or self.mac_grid.cell_type[x, y, z - 1] == CellType.SAND.value
             ):
                 self.mac_grid.v_x[x, y, z] -= (
-                    (
-                        self.mac_grid.pressure[x, y, z]
-                        - self.mac_grid.pressure[x - 1, y, z]
-                    )
-                    * (1.0 / self.density)
-                    * dt
-                )
+                    self.mac_grid.pressure[x, y, z]
+                    - self.mac_grid.pressure[x - 1, y, z]
+                ) * dt
 
         for x, y, z in self.mac_grid.v_y:
             if y > 0 and (
@@ -62,13 +61,9 @@ class PressureSolver(object):
                 or self.mac_grid.cell_type[x, y, z - 1] == CellType.SAND.value
             ):
                 self.mac_grid.v_y[x, y, z] -= (
-                    (
-                        self.mac_grid.pressure[x, y, z]
-                        - self.mac_grid.pressure[x, y - 1, z]
-                    )
-                    * (1.0 / self.density)
-                    * dt
-                )
+                    self.mac_grid.pressure[x, y, z]
+                    - self.mac_grid.pressure[x, y - 1, z]
+                ) * dt
 
         for x, y, z in self.mac_grid.v_z:
             if z > 0 and (
@@ -78,13 +73,9 @@ class PressureSolver(object):
                 or self.mac_grid.cell_type[x, y - 1, z] == CellType.SAND.value
             ):
                 self.mac_grid.v_z[x, y, z] -= (
-                    (
-                        self.mac_grid.pressure[x, y, z]
-                        - self.mac_grid.pressure[x, y, z - 1]
-                    )
-                    * (1.0 / self.density)
-                    * dt
-                )
+                    self.mac_grid.pressure[x, y, z]
+                    - self.mac_grid.pressure[x, y, z - 1]
+                ) * dt
 
     # The following code is taken and adapted to 3D from exercise 4_fluid.py from the PBS course
     # run Gauss-Seidel as long as max iterations has not been reached and accuracy is not good enough

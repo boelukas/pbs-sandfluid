@@ -1,18 +1,8 @@
-from typing import List, Tuple, Union
-from numpy.lib.function_base import diff
+from typing import Tuple
 import taichi as ti
 import numpy as np
-from scipy.interpolate import RegularGridInterpolator
-from mpl_toolkits.mplot3d import axes3d
 import matplotlib.pyplot as plt
 from enum import Enum
-import random as rd
-
-
-class Particle:
-    def __init__(self, position: np.ndarray, velocity: np.ndarray) -> None:
-        self.pos = position
-        self.v = velocity
 
 
 class CellType(Enum):
@@ -21,19 +11,16 @@ class CellType(Enum):
     SOLID = 2
 
 
-class InvalidIndexError(Exception):
-    pass
-
-
 @ti.data_oriented
 class MacGrid:
-    def __init__(self, grid_size: int) -> None:
+    def __init__(
+        self, grid_size: int, initial_sand_cells: Tuple, pic_fraction: float
+    ) -> None:
         # grid parameters
         self.grid_size = grid_size
-        self.flip_viscosity = 0.0
+        self.pic_fraction = pic_fraction
 
-        # All cells in the x, y, z range will be marked as sand
-        self.initial_sand_cells = ((1, 10), (2, 3), (6, 8))
+        self.initial_sand_cells = initial_sand_cells
 
         # Cell centered grids
         self.cell_type = ti.field(
@@ -340,16 +327,14 @@ class MacGrid:
         x_down = self.clamp(int(x - x_offset), 0, x_resolution - 1)
         y_down = self.clamp(int(y - y_offset), 0, y_resolution - 1)
         z_down = self.clamp(int(z - z_offset), 0, z_resolution - 1)
-        # print("x_down, y_down, z_down", x_down, y_down, z_down)
+
         x_up = self.clamp(x_down + 1, 0, x_resolution - 1)
         y_up = self.clamp(y_down + 1, 0, y_resolution - 1)
         z_up = self.clamp(z_down + 1, 0, z_resolution - 1)
-        # print("x_down, y_down, z_down", x_up, y_up, z_up)
 
         diff_x = self.clamp(x - x_offset - x_down, 0.0, 1.0)
         diff_y = self.clamp(y - y_offset - y_down, 0.0, 1.0)
         diff_z = self.clamp(z - z_offset - z_down, 0.0, 1.0)
-        # print("diff_x, diff_y, diff_z", diff_x, diff_y, diff_z)
 
         x_val_front_down = (
             grid[x_down, y_down, z_down] * (1 - diff_x)
@@ -366,11 +351,9 @@ class MacGrid:
         x_val_back_up = (
             grid[x_down, y_up, z_up] * (1 - diff_x) + grid[x_up, y_up, z_up] * diff_x
         )
-        # print("x_val_front_down, x_val_back_down, x_val_front_up, x_val_back_up",x_val_front_down, x_val_back_down, x_val_front_up, x_val_back_up)
 
         xz_val_down = x_val_front_down * (1 - diff_z) + x_val_back_down * diff_z
         xz_val_up = x_val_front_up * (1 - diff_z) + x_val_back_up * diff_z
-        # print("xz_val_down, xz_val_up",xz_val_down, xz_val_up)
 
         return xz_val_down * (1 - diff_y) + xz_val_up * diff_y
 
@@ -425,17 +408,32 @@ class MacGrid:
             self.grid_size + 1,
         )
 
-    # Brings the velocity from the grid to particles. The velocity fields are sampled at the location of the particles.
     @ti.kernel
     def grid_to_particles(self):
+        # For FLIP: Subtract the new grid velocities from the saved velocities
+        for i, j, k in self.v_x:
+            self.v_x_saved[i, j, k] = self.v_x_saved[i, j, k] - self.v_x[i, j, k]
+
+        for i, j, k in self.v_y:
+            self.v_y_saved[i, j, k] = self.v_y_saved[i, j, k] - self.v_y[i, j, k]
+
+        for i, j, k in self.v_z:
+            self.v_z_saved[i, j, k] = self.v_z_saved[i, j, k] - self.v_z[i, j, k]
+
         for i, j, k in self.particle_pos:
             if self.particle_active[i, j, k] == 1:
-                p = self.particle_pos[i, j, k]
-                self.particle_v[i, j, k] = [
-                    self.sample_x_edged(self.v_x, p[0], p[1], p[2]),
-                    self.sample_y_edged(self.v_y, p[0], p[1], p[2]),
-                    self.sample_z_edged(self.v_z, p[0], p[1], p[2]),
-                ]
+                pic_velocity = self.velocity_interpolation(
+                    self.particle_pos[i, j, k], self.v_x, self.v_y, self.v_z
+                )
+                flip_velocity = self.velocity_interpolation(
+                    self.particle_pos[i, j, k],
+                    self.v_x_saved,
+                    self.v_y_saved,
+                    self.v_z_saved,
+                )
+                self.particle_v[i, j, k] = self.pic_fraction * pic_velocity + (
+                    1.0 - self.pic_fraction
+                ) * (self.particle_v[i, j, k] - flip_velocity)
 
     @ti.func
     def splat(
@@ -659,6 +657,11 @@ class MacGrid:
         _uz = self.sample_z_edged(vel_z, pos.x, pos.y, pos.z)
         return ti.Vector([_ux, _uy, _uz])
 
+    def save_velocities(self):
+        self.v_x_saved.copy_from(self.v_x)
+        self.v_y_saved.copy_from(self.v_y)
+        self.v_z_saved.copy_from(self.v_z)
+
     def show_v_y(self):
         vely_numpy = self.v_y.to_numpy()
         resolution = min(vely_numpy.shape)
@@ -761,36 +764,3 @@ class MacGrid:
         # print(np.unravel_index(div_numpy.argmax(), div_numpy.shape))
         # print(np.max(div_numpy))
         plt.show()
-
-    # Taken from pic_flip
-    @ti.kernel
-    def update_from_grid(self):
-        for i, j, k in self.v_x:
-            self.v_x_saved[i, j, k] = self.v_x[i, j, k] - self.v_x_saved[i, j, k]
-
-        for i, j, k in self.v_y:
-            self.v_y_saved[i, j, k] = self.v_y[i, j, k] - self.v_y_saved[i, j, k]
-
-        for i, j, k in self.v_z:
-            self.v_z_saved[i, j, k] = self.v_z[i, j, k] - self.v_z_saved[i, j, k]
-
-        for m, n, o in self.particle_pos:
-            if 1 == self.particle_active[m, n, o]:
-                gvel = self.velocity_interpolation(
-                    self.particle_pos[m, n, o], self.v_x, self.v_y, self.v_z
-                )
-                dvel = self.velocity_interpolation(
-                    self.particle_pos[m, n, o],
-                    self.v_x_saved,
-                    self.v_y_saved,
-                    self.v_z_saved,
-                )
-                self.particle_v[m, n, o] = self.flip_viscosity * gvel + (
-                    1.0 - self.flip_viscosity
-                ) * (self.particle_v[m, n, o] + dvel)
-
-    # Taken from pic_flip
-    def save_velocities(self):
-        self.v_x_saved.copy_from(self.v_x)
-        self.v_y_saved.copy_from(self.v_y)
-        self.v_z_saved.copy_from(self.v_z)

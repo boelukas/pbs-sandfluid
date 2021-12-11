@@ -2,9 +2,7 @@ import taichi as ti
 import open3d as o3d
 import numpy as np
 from macgrid import MacGrid
-from macgrid import Particle
 from pressure_solver import PressureSolver
-from reference_pressure_solver import ReferencePressureSolver
 from force_solver import ForceSolver
 from particle_visualization import ParticleVisualization
 from pathlib import Path
@@ -20,95 +18,64 @@ ti.init(arch=ti.gpu)
 @ti.data_oriented
 class Simulation(object):
     def __init__(self):
+        # Simulation parameters
         self.dt = 1e-2
-        self.t = 0.0
         self.grid_size = 15
-        self.dx = 1.0
-        self.paused = True
+        # All cells in the x, y, z range will be marked as sand
+        self.initial_sand_cells = ((5, 10), (1, 10), (5, 10))
+        self.pic_fraction = 0.0
+        self.gaus_seidel_min_accuracy = 0.0001
+        self.gaus_seidel_max_iterations = 10000
 
+        # Visualization parameters
+        self.paused = True
         self.draw_alpha_surface = False
         self.draw_convex_hull = False
+        self.t = 0.0
         self.mesh = None
+        self.scale = 1.0
+        update_edge_particles = self.draw_alpha_surface or self.draw_convex_hull
 
         # Set this flag to true to export images for every time step
-        self.export_images = False
-        self.scale = 1.0
-        self.alternative_mac_grid = MacGrid(self.grid_size)
+        self.export_images = True
 
-        # Compute particle on the edges of the object for surface reconstruction
-        update_edge_particles = self.draw_alpha_surface or self.draw_convex_hull
-        self.particles_vis = ParticleVisualization(
-            self.alternative_mac_grid, self.scale, update_edge_particles
+        # Grid and solvers
+        self.mac_grid = MacGrid(
+            self.grid_size, self.initial_sand_cells, self.pic_fraction
         )
-        self.pressure_solver = PressureSolver(self.alternative_mac_grid)
-        self.force_solver = ForceSolver(self.alternative_mac_grid)
-        self.sand_solver = SandSolver(self.alternative_mac_grid)
+        # Compute particle on the edges of the object for surface reconstruction
+        self.particles_vis = ParticleVisualization(
+            self.mac_grid, self.scale, update_edge_particles
+        )
+        self.pressure_solver = PressureSolver(
+            self.mac_grid,
+            self.gaus_seidel_min_accuracy,
+            self.gaus_seidel_max_iterations,
+        )
+        self.force_solver = ForceSolver(self.mac_grid)
+        self.sand_solver = SandSolver(self.mac_grid)
 
     def init(self):
-        self.alternative_mac_grid.reset_fields()
+        self.mac_grid.reset_fields()
         self.t = 0.0
 
     def advance(self, dt: ti.f32, t: ti.f32):
-        # # Compute mac_grid.VelX_grid, mac_grid.VelY_grid, mac_grid.VelZ_grid as
-        # # self.mac_grid.splat_velocity(self.particles)
-        # self.alternative_mac_grid.v_x.fill(0.0)
-        # self.alternative_mac_grid.v_y.fill(0.0)
-        # self.alternative_mac_grid.v_z.fill(0.0)
+        self.mac_grid.particles_to_grid()
+        self.mac_grid.save_velocities()
 
-        # self.alternative_mac_grid.particles_to_grid()
-        # # print(self.mac_grid.velY_grid)
-
-        # # Adds gravity to the fluid
-        # # -> velocity changed
-        # self.force_solver.compute_forces()
-        # self.force_solver.apply_forces(dt)
-        # # print(self.mac_grid.velY_grid)
-
-        # # Ensure the fluid stays incompressible:
-        # # Add enough pressure to the fluid to make the velocity field have divergence 0
-        # # -> velocity changed
-        # self.pressure_solver.compute_pressure(dt)
-        # # print(
-        # #     np.min(self.alternative_mac_grid.pressure.to_numpy().transpose(1, 0, 2)),
-        # #     np.max(self.alternative_mac_grid.pressure.to_numpy().transpose(1, 0, 2)),
-        # # )
-        # self.pressure_solver.project(dt)
-        # # self.alternative_mac_grid.show_divergence()
-        # # self.alternative_mac_grid.show_pressure()
-
-        # # Apply boundary conditions so that particles do not disappear out of the domain
-        # self.alternative_mac_grid.neumann_boundary_conditions()
-
-        # # Bring the new velocity to the particles
-        # # self.mac_grid.grid_to_particles(self.particles)
-        # self.alternative_mac_grid.grid_to_particles()
-
-        # Replace with RK2 step
-        # # Update the particle position with the new velocity by stepping in the velocity direction
-
-        # self.alternative_mac_grid.advect_particles_midpoint(dt)
-        # # self.alternative_mac_grid.advect_particles(dt)
-
-        # # Re-Mark the cells after advection step into SOLID, SAND or AIR
-        # self.alternative_mac_grid.update_cell_types()
-        # # self.alternative_mac_grid.print_particles()
-
-        ## FLIP
+        # Non advection steps of fluid solver
         self.force_solver.compute_forces()
         self.force_solver.apply_forces(dt)
         self.pressure_solver.compute_pressure(dt)
         self.pressure_solver.project(dt)
-        self.alternative_mac_grid.neumann_boundary_conditions()
+        self.mac_grid.neumann_boundary_conditions()
 
         # TODO Fix sand solver
-        self.sand_solver.sand_steps(dt)
+        # self.sand_solver.sand_steps(dt)
         # print(self.alternative_mac_grid.frictional_stress)
-        self.alternative_mac_grid.update_from_grid()
-        self.alternative_mac_grid.advect_particles_midpoint(dt)
-        self.alternative_mac_grid.update_cell_types()
-
-        self.alternative_mac_grid.particles_to_grid()
-        self.alternative_mac_grid.save_velocities()
+        self.mac_grid.grid_to_particles()
+        self.mac_grid.advect_particles_midpoint(dt)
+        self.mac_grid.update_cell_types()
 
     def step(self):
         if self.paused:
@@ -136,12 +103,9 @@ def main():
             f.write("Grid Size: {}\n".format(sim.grid_size))
             f.write("dt: {}\n".format(sim.dt))
             f.write(
-                "Particle (x, y, z) range: {}\n".format(
-                    sim.alternative_mac_grid.initial_sand_cells
-                )
+                "Particle (x, y, z) range: {}\n".format(sim.mac_grid.initial_sand_cells)
             )
             f.write("Pressure solver: {}\n".format(sim.pressure_solver.name))
-            f.write("Pressure solver density: {}\n".format(sim.pressure_solver.density))
             f.write(
                 "Pressure solver gauss seidel min accuracy: {}\n".format(
                     sim.pressure_solver.gaus_seidel_min_accuracy
@@ -152,9 +116,7 @@ def main():
                     sim.pressure_solver.gaus_seidel_max_iterations
                 )
             )
-            f.write(
-                "Flip viscosity: {}\n".format(sim.alternative_mac_grid.flip_viscosity)
-            )
+            f.write("PIC fraction: {}\n".format(sim.mac_grid.pic_fraction))
 
     def init(vis):
         print("reset simulation")

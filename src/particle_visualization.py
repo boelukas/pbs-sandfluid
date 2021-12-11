@@ -1,9 +1,8 @@
-from typing import List
 import numpy as np
 import open3d as o3d
 
 
-from macgrid import MacGrid, Particle
+from macgrid import MacGrid
 
 
 class ParticleVisualization(object):
@@ -37,4 +36,6 @@ class ParticleVisualization(object):
                 for x in edge_positions
                 if not np.array_equal(x, np.array([0.0, 0.0, 0.0]))
             ]
-            self.point_cloud_edge.points = o3d.utility.Vector3dVector(np.array(filtered_edge))
+            self.point_cloud_edge.points = o3d.utility.Vector3dVector(
+                np.array(filtered_edge)
+            )
