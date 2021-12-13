@@ -19,3 +19,9 @@ conda activate sandfluid
 python src/simulation.py
 ```
 
+## Controlling the GUI
+
+|Key|Action|
+|-|-|
+|*space*| start/pause simulation|
+|*r*| reset simulation|

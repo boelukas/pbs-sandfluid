@@ -94,6 +94,9 @@ def main():
 
     vis = o3d.visualization.VisualizerWithKeyCallback()
     vis.create_window()
+    print(
+        'Initializing GUI. Use "space" to start and pause the simulation and "r" to reset.'
+    )
     if sim.export_images:
         time = strftime("%Y-%m-%d_%H_%M_%S", gmtime())
         picture_dir = "./sim_" + time
@@ -125,6 +128,10 @@ def main():
 
     def pause(vis):
         sim.paused = not sim.paused
+        if sim.paused:
+            print("simulation paused")
+        else:
+            print("simulation started")
 
     vis.register_key_callback(ord("R"), init)
     vis.register_key_callback(ord(" "), pause)  # space
@@ -195,7 +202,9 @@ def main():
 
         if sim.draw_alpha_surface:
             sim.particles_vis.point_cloud_edge.estimate_normals()
-            sim.particles_vis.point_cloud_edge.orient_normals_consistent_tangent_plane(100)
+            sim.particles_vis.point_cloud_edge.orient_normals_consistent_tangent_plane(
+                100
+            )
             temp_mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(
                 sim.particles_vis.point_cloud_edge, alpha
             )
