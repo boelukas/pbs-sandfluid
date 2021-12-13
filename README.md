@@ -1,5 +1,7 @@
-# PBS-Sandfluid
-The final project for the course Physically-Based Simulation in Computer Graphics HS2021.
+# PIC & FLIP fluid solver
+This is the code of the final project for the course Physically-Based Simulation in Computer Graphics, ETHZ, HS2021.
+We use [Taichi](https://github.com/taichi-dev/taichi) to implement a fluid solver as descibed in the paper: *Zhu, Yongning and Bridson, Robert, Animating sand as a fluid. ACM
+Transactions on Graphics 2005, 24, pp. 965-972*.
 
 ## Cloning the repository
 
@@ -15,5 +17,17 @@ conda env create -f env.yaml
 conda activate sandfluid
 ```
 
-## Autoformatter
-VsCode will ask which autoformatter to use. Select "Use Black".
+## Running the code
+
+```bash
+python simulation.py
+```
+
+
+## Results
+
+https://user-images.githubusercontent.com/48366676/145845275-47e32fd9-0171-44dc-9185-a0f8578e5e36.mp4
+
+
+https://user-images.githubusercontent.com/48366676/145851018-ceed7f97-ee2b-445a-beef-85d8119073e1.mp4
+
