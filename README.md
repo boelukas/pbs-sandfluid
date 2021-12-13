@@ -20,7 +20,7 @@ conda activate sandfluid
 ## Running the code
 
 ```bash
-python simulation.py
+python src/simulation.py
 ```
 
 
