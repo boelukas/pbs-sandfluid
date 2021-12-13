@@ -1,6 +1,6 @@
 # PIC & FLIP fluid simulation
 This is the code of the final project for the course Physically-Based Simulation in Computer Graphics, ETHZ, HS2021.
-We use [Taichi](https://github.com/taichi-dev/taichi) to implement a fluid solver as descibed in the paper: *Zhu, Yongning and Bridson, Robert, Animating sand as a fluid. ACM
+We use [Taichi](https://github.com/taichi-dev/taichi) to implement a fluid solver as described in the paper: *Zhu, Yongning and Bridson, Robert, Animating sand as a fluid. ACM
 Transactions on Graphics 2005, 24, pp. 965-972*.
 
 ## Cloning the repository
