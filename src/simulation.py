@@ -1,3 +1,8 @@
+"""
+Fluid simulation with PIC and FLIP solver and optional sand simulation steps.
+The basic visualization skeleton was taken and adapted from 3_collision.py form the
+252-0546-00L ETH Physically-Based Simulation in Computer Graphics course exercise.
+"""
 import taichi as ti
 import open3d as o3d
 import numpy as np
@@ -10,8 +15,6 @@ from time import gmtime, strftime
 
 from sand_solver import SandSolver
 
-# For debugging
-# ti.init(debug=True, arch=ti.cpu)
 ti.init(arch=ti.gpu)
 
 
@@ -26,6 +29,7 @@ class Simulation(object):
         self.pic_fraction = 0.0
         self.gaus_seidel_min_accuracy = 0.0001
         self.gaus_seidel_max_iterations = 10000
+        self.sand_simulation = False
 
         # Visualization parameters
         self.paused = True
@@ -70,9 +74,9 @@ class Simulation(object):
         self.pressure_solver.project(dt)
         self.mac_grid.neumann_boundary_conditions()
 
-        # TODO Fix sand solver
-        # self.sand_solver.sand_steps(dt)
-        # print(self.alternative_mac_grid.frictional_stress)
+        if self.sand_simulation:
+            self.sand_solver.sand_steps(dt)
+
         self.mac_grid.grid_to_particles()
         self.mac_grid.advect_particles_midpoint(dt)
         self.mac_grid.update_cell_types()
@@ -83,15 +87,11 @@ class Simulation(object):
         self.t += self.dt
         self.advance(self.dt, self.t)
         self.particles_vis.update_particles()
-        # self.alternative_mac_grid.show_rigid_cells()
-
-        # self.alternative_mac_grid.show_divergence()
 
 
 def main():
     sim = Simulation()
 
-    # setup gui
     vis = o3d.visualization.VisualizerWithKeyCallback()
     vis.create_window()
     if sim.export_images:
@@ -105,7 +105,7 @@ def main():
             f.write(
                 "Particle (x, y, z) range: {}\n".format(sim.mac_grid.initial_sand_cells)
             )
-            f.write("Pressure solver: {}\n".format(sim.pressure_solver.name))
+            f.write("Sand Simulation: {}\n".format(sim.sand_simulation))
             f.write(
                 "Pressure solver gauss seidel min accuracy: {}\n".format(
                     sim.pressure_solver.gaus_seidel_min_accuracy
@@ -194,13 +194,10 @@ def main():
 
         if sim.draw_alpha_surface:
             sim.particles_vis.point_cloud_edge.estimate_normals()
-            # temp_mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(sim.particles_vis.point_cloud_edge, o3d.utility.DoubleVector(pivot_radii))
-            # temp_mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(sim.particles_vis.point_cloud_edge, depth=20)
             temp_mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(
                 sim.particles_vis.point_cloud_edge, alpha
             )
             temp_mesh.orient_triangles()
-            # temp_mesh = temp_mesh.filter_smooth_simple()
 
             vis.remove_geometry(sim.mesh, False)
             sim.mesh = temp_mesh

@@ -1,4 +1,6 @@
-# Inspired by https://stackoverflow.com/questions/44947505/how-to-make-a-movie-out-of-images-in-python
+"""
+Partly taken from https://stackoverflow.com/questions/44947505/how-to-make-a-movie-out-of-images-in-python
+"""
 
 import os
 import moviepy.video.io.ImageSequenceClip

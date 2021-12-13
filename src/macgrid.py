@@ -1,3 +1,9 @@
+"""
+Staggered MAC grid implementation.
+The skeleton was inspired by https://github.com/Wimacs/taichi_code/blob/master/flip%26apic%26pic/pic_flip.py, 
+which implements a pic/flip fluid solver in 2D.
+"""
+
 from typing import Tuple
 import taichi as ti
 import numpy as np
@@ -121,25 +127,6 @@ class MacGrid:
         self.reset_fields()
 
     @ti.kernel
-    def test(self):
-        for i, j, k in self.pressure:
-            self.pressure[i, j, k] = i
-        print(1.0 == self.sample_cell_centered(self.pressure, 1.5, 0.5, 0.5))
-        print(0.0 == self.sample_cell_centered(self.pressure, 0.5, 0.5, 0.5))
-        print(0.75 == self.sample_cell_centered(self.pressure, 1.25, 0.5, 0.5))
-        for i, j, k in self.pressure:
-            self.pressure[i, j, k] = j
-        print(1.0 == self.sample_cell_centered(self.pressure, 0.5, 1.5, 0.5))
-        print(0.0 == self.sample_cell_centered(self.pressure, 0.5, 0.5, 0.5))
-        print(0.75 == self.sample_cell_centered(self.pressure, 0.5, 1.25, 0.5))
-
-        for i, j, k in self.pressure:
-            self.pressure[i, j, k] = k
-        print(1.0 == self.sample_cell_centered(self.pressure, 0.5, 0.5, 1.5))
-        print(0.0 == self.sample_cell_centered(self.pressure, 0.5, 0.5, 0.5))
-        print(0.75 == self.sample_cell_centered(self.pressure, 0.5, 0.5, 1.25))
-
-    @ti.kernel
     def reset_fields(self):
         # Cell centered grids
         self.clear_field(self.cell_type)
@@ -260,7 +247,7 @@ class MacGrid:
             else:
                 self.particle_active[i, j, k] = 0
 
-    # Taken from 4_fluid.py from the exercises
+    # Taken from 4_fluid.py 252-0546-00L ETH Physically-Based Simulation in Computer Graphics course exercise
     @ti.func
     def clear_field(self, f: ti.template(), v: ti.template() = 0):
         for x, y, z in ti.ndrange(*f.shape):
@@ -603,7 +590,7 @@ class MacGrid:
 
     # Explicite euler step to advect particles
     @ti.kernel
-    def advect_particles(self, dt: ti.f32):
+    def advect_particles_explicit_euler(self, dt: ti.f32):
         for i, j, k in self.particle_pos:
             if self.particle_active[i, j, k] == 1:
                 self.particle_pos[i, j, k] += dt * self.particle_v[i, j, k]
@@ -652,10 +639,10 @@ class MacGrid:
 
     @ti.func
     def velocity_interpolation(self, pos, vel_x, vel_y, vel_z):
-        _ux = self.sample_x_edged(vel_x, pos.x, pos.y, pos.z)
-        _uy = self.sample_y_edged(vel_y, pos.x, pos.y, pos.z)
-        _uz = self.sample_z_edged(vel_z, pos.x, pos.y, pos.z)
-        return ti.Vector([_ux, _uy, _uz])
+        v_x = self.sample_x_edged(vel_x, pos.x, pos.y, pos.z)
+        v_y = self.sample_y_edged(vel_y, pos.x, pos.y, pos.z)
+        v_z = self.sample_z_edged(vel_z, pos.x, pos.y, pos.z)
+        return ti.Vector([v_x, v_y, v_z])
 
     def save_velocities(self):
         self.v_x_saved.copy_from(self.v_x)
@@ -707,8 +694,6 @@ class MacGrid:
         v = p_numpy[:resolution, :resolution, :resolution]
 
         ax.quiver(y, z, x, u, w, v, length=1, color="black")
-        # print(np.unravel_index(p_numpy.argmax(), p_numpy.shape))
-        # print(np.max(p_numpy))
         plt.show()
 
     # Plots the rigid cells
@@ -734,8 +719,6 @@ class MacGrid:
         v = p_numpy[:resolution, :resolution, :resolution]
 
         ax.quiver(y, z, x, u, w, v, length=1, color="black")
-        # print(np.unravel_index(p_numpy.argmax(), p_numpy.shape))
-        # print(np.max(p_numpy))
         plt.show()
 
     # Plots divergence. Upwards pointing values are positive.
@@ -761,6 +744,4 @@ class MacGrid:
         v = div_numpy[:resolution, :resolution, :resolution]
 
         ax.quiver(y, z, x, u, w, v, length=1, color="black")
-        # print(np.unravel_index(div_numpy.argmax(), div_numpy.shape))
-        # print(np.max(div_numpy))
         plt.show()

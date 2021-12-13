@@ -131,8 +131,6 @@ class SandSolver(object):
                 )
                 lhs = ti.sqrt(3.0) * sigma_bar
                 rhs = ti.sin(self.internal_friction_angle) * sigma_m
-                # TODO: Should maybe be >=
-                # print(lhs, rhs)
                 if lhs < rhs:
                     self.mac_grid.cell_rigid[x, y, z] = 1
                 else:
