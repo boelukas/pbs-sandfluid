@@ -171,10 +171,11 @@ def main():
     aabb.color = [0.7, 0.7, 0.7]
     vis.add_geometry(aabb)  # bounding box
 
-    # pivot_radii = [8.0]
-    alpha = 5.0
+    alpha = 9.5
 
     if sim.draw_alpha_surface:
+        sim.particles_vis.point_cloud_edge.estimate_normals()
+        sim.particles_vis.point_cloud_edge.orient_normals_consistent_tangent_plane(100)
         sim.mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(
             sim.particles_vis.point_cloud, alpha
         )
@@ -194,11 +195,13 @@ def main():
 
         if sim.draw_alpha_surface:
             sim.particles_vis.point_cloud_edge.estimate_normals()
+            sim.particles_vis.point_cloud_edge.orient_normals_consistent_tangent_plane(100)
             temp_mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(
                 sim.particles_vis.point_cloud_edge, alpha
             )
             temp_mesh.orient_triangles()
-
+            temp_mesh.filter_smooth_simple(number_of_iterations=1)
+            temp_mesh.paint_uniform_color(np.array([0.14, 0.59, 0.86]))
             vis.remove_geometry(sim.mesh, False)
             sim.mesh = temp_mesh
             vis.add_geometry(sim.mesh, False)
